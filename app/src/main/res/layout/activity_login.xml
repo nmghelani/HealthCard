@@ -19,7 +19,7 @@
             android:layout_height="@dimen/_120sdp"
             android:background="@color/transparent"
             android:elevation="@dimen/_5sdp"
-            android:src="@mipmap/icon" />
+            android:src="@mipmap/ic_launcher" />
 
         <EditText
             android:id="@+id/etEmail"

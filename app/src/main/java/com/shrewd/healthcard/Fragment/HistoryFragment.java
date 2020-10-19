@@ -33,6 +33,7 @@ import com.shrewd.healthcard.Adapter.HistoryAdapter;
 import com.shrewd.healthcard.ModelClass.History;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.databinding.FragmentHistoryBinding;
 
 import java.util.ArrayList;
 
@@ -43,34 +44,21 @@ import static android.content.Context.MODE_PRIVATE;
  */
 public class HistoryFragment extends Fragment {
 
-    private final Context mContext;
+    private Context mContext;
     private ArrayList<History> alHistory = new ArrayList<>();
     private FirebaseUser firebaseUser;
     private static final String TAG = "HistoryFragment";
-    private RecyclerView rvHistory;
-    private LinearLayout llNoData;
-    private FrameLayout flPatient, flAdmin;
-    private RecyclerView rvHistoryAdmin;
-    private LinearLayout llNoDataAdmin;
+    private FragmentHistoryBinding binding;
 
-    public HistoryFragment(Context mContext) {
-        this.mContext = mContext;
+    public HistoryFragment() {
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        final View view = inflater.inflate(R.layout.fragment_history, container, false);
-        flPatient = view.findViewById(R.id.flPatient);
-        flAdmin = view.findViewById(R.id.flAdmin);
-
-        rvHistory = view.findViewById(R.id.rvHistory);
-        llNoData = view.findViewById(R.id.llNoData);
-
-        rvHistoryAdmin = view.findViewById(R.id.rvHistoryAdmin);
-        llNoDataAdmin = view.findViewById(R.id.llNoDataAdmin);
-
+        binding = FragmentHistoryBinding.inflate(getLayoutInflater(), container, false);
+        mContext = getContext();
         SharedPreferences sp = mContext.getSharedPreferences("GC", MODE_PRIVATE);
         long type = sp.getLong(CS.type, 1);
         Log.e(TAG, "onCreateView: " + type);
@@ -79,8 +67,8 @@ public class HistoryFragment extends Fragment {
         ((MainActivity) mContext).setInProgress();
 
         if (type == CS.ADMIN) {
-            flAdmin.setVisibility(View.VISIBLE);
-            flPatient.setVisibility(View.GONE);
+            binding.flAdmin.setVisibility(View.VISIBLE);
+            binding.flPatient.setVisibility(View.GONE);
             db.collection(CS.History)
                     .orderBy(CS.date, Query.Direction.DESCENDING)
 //                    .whereEqualTo(CS.patientid, firebaseUser.getUid())
@@ -114,8 +102,8 @@ public class HistoryFragment extends Fragment {
                         }
                     });
         } else {
-            flAdmin.setVisibility(View.GONE);
-            flPatient.setVisibility(View.VISIBLE);
+            binding.flAdmin.setVisibility(View.GONE);
+            binding.flPatient.setVisibility(View.VISIBLE);
             db.collection(CS.Patient)
                     .whereEqualTo(CS.userid, firebaseUser.getUid())
                     .get()
@@ -159,35 +147,35 @@ public class HistoryFragment extends Fragment {
 
         }
 
-        return view;
+        return binding.getRoot();
     }
 
     private void setAdapter(ArrayList<History> alHistory, long type) {
         switch ((int) type) {
             case CS.ADMIN:
                 if (alHistory.size() > 0) {
-                    rvHistoryAdmin.setVisibility(View.VISIBLE);
-                    llNoDataAdmin.setVisibility(View.GONE);
+                    binding.rvHistoryAdmin.setVisibility(View.VISIBLE);
+                    binding.llNoDataAdmin.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alHistory.size());
                     HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.ADMIN);
-                    rvHistoryAdmin.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
-                    rvHistoryAdmin.setAdapter(historyAdapter);
+                    binding.rvHistoryAdmin.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+                    binding.rvHistoryAdmin.setAdapter(historyAdapter);
                 } else {
-                    rvHistoryAdmin.setVisibility(View.GONE);
-                    llNoDataAdmin.setVisibility(View.VISIBLE);
+                    binding.rvHistoryAdmin.setVisibility(View.GONE);
+                    binding.llNoDataAdmin.noDataContent.setVisibility(View.VISIBLE);
                 }
                 break;
             case CS.PATIENT:
                 if (alHistory.size() > 0) {
-                    rvHistory.setVisibility(View.VISIBLE);
-                    llNoData.setVisibility(View.GONE);
+                    binding.rvHistory.setVisibility(View.VISIBLE);
+                    binding.llNoData.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alHistory.size());
                     HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.PATIENT);
-                    rvHistory.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
-                    rvHistory.setAdapter(historyAdapter);
+                    binding.rvHistory.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+                    binding.rvHistory.setAdapter(historyAdapter);
                 } else {
-                    rvHistory.setVisibility(View.GONE);
-                    llNoData.setVisibility(View.VISIBLE);
+                    binding.rvHistory.setVisibility(View.GONE);
+                    binding.llNoData.noDataContent.setVisibility(View.VISIBLE);
                 }
                 break;
         }

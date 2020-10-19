@@ -3,17 +3,10 @@ package com.shrewd.healthcard.Fragment;
 
 import android.content.Context;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.LinearLayout;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -27,8 +20,14 @@ import com.shrewd.healthcard.Adapter.VerifyAdapter;
 import com.shrewd.healthcard.ModelClass.User;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.databinding.FragmentVerifyBinding;
 
 import java.util.ArrayList;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -36,16 +35,14 @@ import java.util.ArrayList;
 public class VerifyFragment extends Fragment {
 
 
-    private final Context mContext;
-    private FirebaseUser firebaseUser;
+    private Context mContext;
     private static final String TAG = "VerifyFragment";
-    private RecyclerView rvVerify;
-    private LinearLayout llNoData;
     private ArrayList<User> alUser = new ArrayList<>();
     private ArrayList<String> alUserid = new ArrayList<>();
+    private FragmentVerifyBinding binding;
 
-    public VerifyFragment(Context mContext) {
-        this.mContext = mContext;
+    public VerifyFragment() {
+
     }
 
 
@@ -53,13 +50,10 @@ public class VerifyFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_verify, container, false);
-        rvVerify = view.findViewById(R.id.rvVerify);
-        llNoData = view.findViewById(R.id.llNoData);
-
+        binding = FragmentVerifyBinding.inflate(getLayoutInflater(), container, false);
+        mContext = getContext();
         Log.e(TAG, "onCreateView: ");
-
-        return view;
+        return binding.getRoot();
     }
 
     @Override
@@ -104,7 +98,7 @@ public class VerifyFragment extends Fragment {
                             }
                         }
                         ((MainActivity) mContext).setProgressCompleted();
-                        setAdapter(alUser,alUserid);
+                        setAdapter(alUser, alUserid);
 
                     }
                 })
@@ -112,7 +106,7 @@ public class VerifyFragment extends Fragment {
                     @Override
                     public void onFailure(@NonNull Exception e) {
                         ((MainActivity) mContext).setProgressCompleted();
-                        setAdapter(alUser,alUserid);
+                        setAdapter(alUser, alUserid);
                         Log.e(TAG, "onFailure: " + e.getMessage());
                     }
                 });
@@ -121,16 +115,15 @@ public class VerifyFragment extends Fragment {
 
     private void setAdapter(ArrayList<User> alUser, ArrayList<String> alUserid) {
         if (alUser.size() > 0) {
-            rvVerify.setVisibility(View.VISIBLE);
-            llNoData.setVisibility(View.GONE);
+            binding.rvVerify.setVisibility(View.VISIBLE);
+            binding.llNoData.noDataContent.setVisibility(View.GONE);
             Log.e(TAG, "onSuccess: " + alUser.size());
             VerifyAdapter verifyAdapter = new VerifyAdapter(mContext, alUser, alUserid);
-            rvVerify.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
-            rvVerify.setAdapter(verifyAdapter);
+            binding.rvVerify.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+            binding.rvVerify.setAdapter(verifyAdapter);
         } else {
-            rvVerify.setVisibility(View.GONE);
-            llNoData.setVisibility(View.VISIBLE);
+            binding.rvVerify.setVisibility(View.GONE);
+            binding.llNoData.noDataContent.setVisibility(View.VISIBLE);
         }
-
     }
 }

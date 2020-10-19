@@ -3,14 +3,14 @@ package com.shrewd.healthcard.Fragment;
 
 import android.content.Context;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.shrewd.healthcard.R;
+import com.shrewd.healthcard.databinding.FragmentAboutBinding;
+
+import androidx.fragment.app.Fragment;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -18,11 +18,10 @@ import com.shrewd.healthcard.R;
 public class AboutFragment extends Fragment {
 
 
-    private final Context mContext;
+    private Context mContext;
+    private FragmentAboutBinding binding;
 
-    public AboutFragment(Context mContext) {
-        this.mContext = mContext;
-
+    public AboutFragment() {
     }
 
 
@@ -30,7 +29,9 @@ public class AboutFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_about, container, false);
+        binding = FragmentAboutBinding.inflate(inflater, container, false);
+        mContext = getContext();
+        return binding.getRoot();
     }
 
 }

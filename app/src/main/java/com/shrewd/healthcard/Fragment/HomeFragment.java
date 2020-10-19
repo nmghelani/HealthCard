@@ -36,6 +36,7 @@ import com.shrewd.healthcard.Activity.LoginActivity;
 import com.shrewd.healthcard.Utilities.CS;
 import com.shrewd.healthcard.Utilities.CU;
 import com.shrewd.healthcard.R;
+import com.shrewd.healthcard.databinding.FragmentHomeBinding;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -50,52 +51,37 @@ import static android.content.Context.MODE_PRIVATE;
  */
 public class HomeFragment extends Fragment {
 
-
     private static final String TAG = "HomeFragment";
-    private final Context mContext;
-    private FrameLayout flDoctor, flPatient, flLab, flGovernment, flAdmin;
-    private PieChart pcDoctor;
+    private Context mContext;
     private ArrayList pieEntries;
     private PieDataSet pieDataSet;
     private PieData pieData;
-    private PieChart pcLab;
     private ArrayList pcLabEntries;
     private PieDataSet pcLabDataSet;
     private PieData pcLabData;
     private long type;
-    private LineChart lcPatient;
     private ArrayList lcPatientlineEntries;
     private LineDataSet lcPatientlineDataSet;
     private LineData lcPatientlineData;
-    private PieChart pcAdminDisease;
     private ArrayList pcAdminpieEntries;
     private PieData pcAdminpieData;
     private PieDataSet pcAdminpieDataSet;
+    private FragmentHomeBinding binding;
 
-    public HomeFragment(Context mContext) {
-        this.mContext = mContext;
-        type = mContext.getSharedPreferences("GC", MODE_PRIVATE).getLong(CS.type, -1);
+    public HomeFragment() {
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_home, container, false);
-        flDoctor = view.findViewById(R.id.flDoctor);
-        flPatient = view.findViewById(R.id.flPatient);
-        flLab = view.findViewById(R.id.flLab);
-        flGovernment = view.findViewById(R.id.flGovernment);
-        flAdmin = view.findViewById(R.id.flAdmin);
-        lcPatient = view.findViewById(R.id.lcPatient);
-        pcDoctor = view.findViewById(R.id.pcDoctor);
-        pcAdminDisease = view.findViewById(R.id.pcAdminDisease);
-        pcAdminDisease.getDescription().setEnabled(false);
-
-        pcDoctor.setCenterText("Disease");
-        pcDoctor.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
-        pcDoctor.getDescription().setEnabled(false);
-        CU.setLayout(type, flDoctor, flGovernment, flLab, flPatient, flAdmin);
+        binding = FragmentHomeBinding.inflate(getLayoutInflater(), container, false);
+        mContext = getContext();
+        type = mContext.getSharedPreferences("GC", MODE_PRIVATE).getLong(CS.type, -1);
+        binding.pcDoctor.setCenterText("Disease");
+        binding.pcDoctor.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
+        binding.pcDoctor.getDescription().setEnabled(false);
+        CU.setLayout(type, binding.flDoctor, binding.flGovernment, binding.flLab, binding.flPatient, binding.flAdmin);
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
             Toast.makeText(mContext, "Some error occurred! Please login again", Toast.LENGTH_SHORT).show();
@@ -146,13 +132,13 @@ public class HomeFragment extends Fragment {
                                                 if (pieEntries.size() > 0) {
                                                     pieDataSet = new PieDataSet(pieEntries, "");
                                                     pieData = new PieData(pieDataSet);
-                                                    pcDoctor.setData(pieData);
+                                                    binding.pcDoctor.setData(pieData);
                                                     pieDataSet.setColors(ColorTemplate.JOYFUL_COLORS);
                                                     pieDataSet.setSliceSpace(2f);
                                                     pieDataSet.setValueTextColor(Color.WHITE);
                                                     pieDataSet.setValueTextSize(10f);
                                                     pieDataSet.setSliceSpace(5f);
-                                                    pcDoctor.animateXY(1500, 500);
+                                                    binding.pcDoctor.animateXY(1500, 500);
                                                     Log.e(TAG, "onSuccess: ***");
                                                 }
                                             }
@@ -162,11 +148,10 @@ public class HomeFragment extends Fragment {
                         }
                     });
         } else if (type == CS.LAB) {
-            pcLab = view.findViewById(R.id.pcLab);
-            pcLab.setCenterText("Reports");
+            binding.pcLab.setCenterText("Reports");
 
-            pcLab.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
-            pcLab.getDescription().setEnabled(false);
+            binding.pcLab.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
+            binding.pcLab.getDescription().setEnabled(false);
 //        getEntries();
 
             Log.e(TAG, "onSuccess: " + firebaseUser.getUid());
@@ -212,13 +197,13 @@ public class HomeFragment extends Fragment {
                                                 if (pcLabEntries.size() > 0) {
                                                     pcLabDataSet = new PieDataSet(pcLabEntries, "");
                                                     pcLabData = new PieData(pcLabDataSet);
-                                                    pcLab.setData(pcLabData);
+                                                    binding.pcLab.setData(pcLabData);
                                                     pcLabDataSet.setColors(ColorTemplate.JOYFUL_COLORS);
                                                     pcLabDataSet.setSliceSpace(2f);
                                                     pcLabDataSet.setValueTextColor(Color.WHITE);
                                                     pcLabDataSet.setValueTextSize(10f);
                                                     pcLabDataSet.setSliceSpace(5f);
-                                                    pcLab.animateXY(1500, 500);
+                                                    binding.pcLab.animateXY(1500, 500);
                                                     Log.e(TAG, "onSuccess: ***");
                                                 }
                                             }
@@ -229,7 +214,7 @@ public class HomeFragment extends Fragment {
                     });
         } else if (type == CS.PATIENT) {
             lcPatientlineEntries = new ArrayList<>();
-            lcPatient.getDescription().setEnabled(false);
+            binding.lcPatient.getDescription().setEnabled(false);
             db.collection(CS.Patient)
                     .whereEqualTo(CS.userid, firebaseUser.getUid())
                     .get()
@@ -254,11 +239,11 @@ public class HomeFragment extends Fragment {
                                                 if (lcPatientlineEntries.size() > 0) {
                                                     lcPatientlineDataSet = new LineDataSet(lcPatientlineEntries, "");
                                                     lcPatientlineData = new LineData(lcPatientlineDataSet);
-                                                    lcPatient.setData(lcPatientlineData);
+                                                    binding.lcPatient.setData(lcPatientlineData);
                                                     lcPatientlineDataSet.setColors(ColorTemplate.JOYFUL_COLORS);
                                                     lcPatientlineDataSet.setValueTextColor(Color.BLACK);
                                                     lcPatientlineDataSet.setValueTextSize(18f);
-                                                    lcPatient.animateY(1500);
+                                                    binding.lcPatient.animateY(1500);
                                                 }
                                             }
                                         });
@@ -267,10 +252,10 @@ public class HomeFragment extends Fragment {
                         }
                     });
         } else if (type == CS.ADMIN) {
-            pcAdminDisease.getDescription().setEnabled(false);
-            pcAdminDisease.setCenterText("Disease");
-            pcAdminDisease.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
-            pcAdminDisease.getDescription().setEnabled(false);
+            binding.pcAdminDisease.getDescription().setEnabled(false);
+            binding.pcAdminDisease.setCenterText("Disease");
+            binding.pcAdminDisease.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
+            binding.pcAdminDisease.getDescription().setEnabled(false);
             db.collection(CS.History)
                     .get()
                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
@@ -303,20 +288,20 @@ public class HomeFragment extends Fragment {
                             if (pcAdminpieEntries.size() > 0) {
                                 pcAdminpieDataSet = new PieDataSet(pcAdminpieEntries, "");
                                 pcAdminpieData = new PieData(pcAdminpieDataSet);
-                                pcAdminDisease.setData(pcAdminpieData);
+                                binding.pcAdminDisease.setData(pcAdminpieData);
                                 pcAdminpieDataSet.setColors(ColorTemplate.MATERIAL_COLORS);
                                 pcAdminpieDataSet.setSliceSpace(2f);
                                 pcAdminpieDataSet.setValueTextColor(Color.WHITE);
                                 pcAdminpieDataSet.setValueTextSize(10f);
                                 pcAdminpieDataSet.setSliceSpace(5f);
-                                pcAdminDisease.animateXY(1500, 500);
+                                binding.pcAdminDisease.animateXY(1500, 500);
                                 Log.e(TAG, "onSuccess: ***");
                             }
                         }
                     });
         }
 
-        return view;
+        return binding.getRoot();
     }
 
 }

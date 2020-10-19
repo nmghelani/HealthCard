@@ -8,13 +8,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.core.view.GravityCompat;
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -37,9 +30,14 @@ import com.shrewd.healthcard.Adapter.ReportAdapter;
 import com.shrewd.healthcard.ModelClass.Report;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
-import com.shrewd.healthcard.Utilities.CU;
+import com.shrewd.healthcard.databinding.FragmentReportsBinding;
 
 import java.util.ArrayList;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -48,33 +46,21 @@ public class ReportsFragment extends Fragment {
 
 
     private static final String TAG = "ReportsFragment";
-    private final Context mContext;
-    private LinearLayout llNoData;
-    private RecyclerView rvReport;
+    private Context mContext;
     private ArrayList<Report> alReport = new ArrayList<>();
-    private LinearLayout llNoDataAdmin;
-    private RecyclerView rvReportAdmin;
-    private FrameLayout flReport, flReportAdmin;
     private ProgressDialog pd;
+    private FragmentReportsBinding binding;
 
-    public ReportsFragment(Context mContext) {
+    public ReportsFragment() {
         // Required empty public constructor
-        this.mContext = mContext;
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_reports, container, false);
-        rvReport = view.findViewById(R.id.rvReport);
-        llNoData = view.findViewById(R.id.llNoData);
-        flReport = view.findViewById(R.id.flReport);
-        flReportAdmin = view.findViewById(R.id.flReportAdmin);
-        rvReportAdmin = view.findViewById(R.id.rvReportAdmin);
-        llNoDataAdmin = view.findViewById(R.id.llNoDataAdmin);
-
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        binding = FragmentReportsBinding.inflate(getLayoutInflater(), container, false);
+        mContext = getContext();
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
             Toast.makeText(mContext, "Some error occurred! Please login again", Toast.LENGTH_SHORT).show();
@@ -84,7 +70,7 @@ public class ReportsFragment extends Fragment {
 //        loadData();
 
 
-        return view;
+        return binding.getRoot();
     }
 
     private void loadData() {
@@ -94,8 +80,8 @@ public class ReportsFragment extends Fragment {
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (type == CS.ADMIN) {
             MainActivity.NFCReportEnabled = true;
-            flReportAdmin.setVisibility(View.VISIBLE);
-            flReport.setVisibility(View.GONE);
+            binding.flReportAdmin.setVisibility(View.VISIBLE);
+            binding.flReport.setVisibility(View.GONE);
 
             ((MainActivity) mContext).setInProgress();
             db.collection(CS.Report)
@@ -136,8 +122,8 @@ public class ReportsFragment extends Fragment {
                         }
                     });
         } else if (type == CS.LAB) {
-            flReportAdmin.setVisibility(View.GONE);
-            flReport.setVisibility(View.VISIBLE);
+            binding.flReportAdmin.setVisibility(View.GONE);
+            binding.flReport.setVisibility(View.VISIBLE);
             MainActivity.NFCReportEnabled = true;
 
             ((MainActivity) mContext).setInProgress();
@@ -188,8 +174,8 @@ public class ReportsFragment extends Fragment {
                         }
                     });
         } else if (type == CS.PATIENT) {
-            flReportAdmin.setVisibility(View.GONE);
-            flReport.setVisibility(View.VISIBLE);
+            binding.flReportAdmin.setVisibility(View.GONE);
+            binding.flReport.setVisibility(View.VISIBLE);
             MainActivity.NFCReportEnabled = true;
 
             ((MainActivity) mContext).setInProgress();
@@ -251,42 +237,42 @@ public class ReportsFragment extends Fragment {
             pd.setOnDismissListener(new DialogInterface.OnDismissListener() {
                 @Override
                 public void onDismiss(DialogInterface dialog) {
-                    ((MainActivity)mContext).nav_view.getMenu().performIdentifierAction(R.id.navPatient, 0);
-                    ((MainActivity)mContext).nav_view.setCheckedItem(R.id.navPatient);
+                    ((MainActivity) mContext).binding.navView.getMenu().performIdentifierAction(R.id.patientFragment, 0);
+                    ((MainActivity) mContext).binding.navView.setCheckedItem(R.id.patientFragment);
                 }
             });
         }
     }
 
     private void setAdapter(ArrayList<Report> alReport, int type) {
-        rvReport.setVisibility(View.GONE);
-        llNoData.setVisibility(View.GONE);
+        binding.rvReport.setVisibility(View.GONE);
+        binding.llNoData.noDataContent.setVisibility(View.GONE);
         switch (type) {
             case CS.PATIENT:
             case CS.LAB:
                 if (alReport.size() > 0) {
-                    rvReport.setVisibility(View.VISIBLE);
-                    llNoData.setVisibility(View.GONE);
+                    binding.rvReport.setVisibility(View.VISIBLE);
+                    binding.llNoData.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alReport.size());
                     ReportAdapter reportAdapter = new ReportAdapter(mContext, alReport, type);
-                    rvReport.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
-                    rvReport.setAdapter(reportAdapter);
+                    binding.rvReport.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+                    binding.rvReport.setAdapter(reportAdapter);
                 } else {
-                    rvReport.setVisibility(View.GONE);
-                    llNoData.setVisibility(View.VISIBLE);
+                    binding.rvReport.setVisibility(View.GONE);
+                    binding.llNoData.noDataContent.setVisibility(View.VISIBLE);
                 }
                 break;
             case CS.ADMIN:
                 if (alReport.size() > 0) {
-                    rvReportAdmin.setVisibility(View.VISIBLE);
-                    llNoDataAdmin.setVisibility(View.GONE);
+                    binding.rvReportAdmin.setVisibility(View.VISIBLE);
+                    binding.llNoDataAdmin.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alReport.size());
                     ReportAdapter reportAdapter = new ReportAdapter(mContext, alReport, type);
-                    rvReportAdmin.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
-                    rvReportAdmin.setAdapter(reportAdapter);
+                    binding.rvReportAdmin.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+                    binding.rvReportAdmin.setAdapter(reportAdapter);
                 } else {
-                    rvReportAdmin.setVisibility(View.GONE);
-                    llNoDataAdmin.setVisibility(View.VISIBLE);
+                    binding.rvReportAdmin.setVisibility(View.GONE);
+                    binding.llNoDataAdmin.noDataContent.setVisibility(View.VISIBLE);
                 }
                 break;
         }

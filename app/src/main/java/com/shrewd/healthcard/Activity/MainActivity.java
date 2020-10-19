@@ -1,17 +1,5 @@
 package com.shrewd.healthcard.Activity;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.ActionBarDrawerToggle;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.fragment.app.Fragment;
-import de.hdodenhof.circleimageview.CircleImageView;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
@@ -46,12 +34,8 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.MimeTypeMap;
 import android.widget.ArrayAdapter;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RadioGroup;
-import android.widget.RelativeLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -70,14 +54,11 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.datepicker.CalendarConstraints;
 import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textview.MaterialTextView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -87,14 +68,6 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
-import com.shrewd.healthcard.Fragment.AboutFragment;
-import com.shrewd.healthcard.Fragment.AnalysisFragment;
-import com.shrewd.healthcard.Fragment.HistoryFragment;
-import com.shrewd.healthcard.Fragment.HomeFragment;
-import com.shrewd.healthcard.Fragment.PatientFragment;
-import com.shrewd.healthcard.Fragment.ReportsFragment;
-import com.shrewd.healthcard.Fragment.SettingsFragment;
-import com.shrewd.healthcard.Fragment.VerifyFragment;
 import com.shrewd.healthcard.ModelClass.Doctor;
 import com.shrewd.healthcard.ModelClass.Government;
 import com.shrewd.healthcard.ModelClass.Hospital;
@@ -102,9 +75,11 @@ import com.shrewd.healthcard.ModelClass.LabAssistant;
 import com.shrewd.healthcard.ModelClass.Laboratory;
 import com.shrewd.healthcard.ModelClass.Patient;
 import com.shrewd.healthcard.ModelClass.User;
+import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
 import com.shrewd.healthcard.Utilities.CU;
-import com.shrewd.healthcard.R;
+import com.shrewd.healthcard.databinding.ActivityMainBinding;
+import com.shrewd.healthcard.databinding.DgNewUserBinding;
 
 import java.io.File;
 import java.io.IOException;
@@ -114,6 +89,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
+import androidx.navigation.ui.NavigationUI;
+import de.hdodenhof.circleimageview.CircleImageView;
+
 public class MainActivity extends AppCompatActivity implements LocationListener {
 
     private static final String TAG = "MainActivity";
@@ -122,18 +109,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private static final int MY_PERMISSIONS_REQUEST_FINE_LOCATION = 103;
     private static final int MY_PERMISSIONS_REQUEST_COARSE_LOCATION = 104;
     private static final int MY_PERMISSION_PERMISSION_ID = 105;
-    public static Toolbar toolbar;
-    public static DrawerLayout drawer;
     public static boolean fromReport = false;
     public ActionBarDrawerToggle toggle;
-    public NavigationView nav_view;
     private Context mContext;
-    private FrameLayout flProgressbar;
-    private SpinKitView progressBarHeader;
-    private FrameLayout flContainer;
-    private MaterialTextView tvFile;
     private Uri filePathUri;
-    private TextView tvUsername;
     private boolean isDialogDisplayed = false;
     private boolean isWrite = false;
     public NfcAdapter mNfcAdapter;
@@ -142,12 +121,20 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private Dialog dgNewUser;
     private LocationManager locationManager;
     private FusedLocationProviderClient mFusedLocationClient;
+    public ActivityMainBinding binding;
+    private SpinKitView progressBarHeader;
+    private TextView tvUsername;
+    private TextView tvFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
         mContext = MainActivity.this;
+
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        NavigationUI.setupWithNavController(binding.navView, navController);
 
         /*if (checkPermission(Manifest.permission.ACCESS_FINE_LOCATION, MY_PERMISSIONS_REQUEST_FINE_LOCATION) && checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, MY_PERMISSIONS_REQUEST_COARSE_LOCATION)) {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -168,6 +155,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         if (!statusOfGPS) {
             startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
         }*/
+
+        binding.ivNavigation.setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("WrongConstant")
+            @Override
+            public void onClick(View v) {
+                if (binding.drawerLayout.isDrawerOpen(Gravity.START)) {
+                    binding.drawerLayout.closeDrawer(Gravity.START);
+                } else {
+                    binding.drawerLayout.openDrawer(Gravity.START);
+                }
+            }
+        });
 
         FirebaseMessaging.getInstance().setAutoInitEnabled(true);
 
@@ -213,24 +212,44 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             Log.e(TAG, "onCreate: error: " + ex.getMessage());
         }
 
-        toolbar = findViewById(R.id.toolbar);
-        drawer = findViewById(R.id.drawer_layout);
-        nav_view = (NavigationView) findViewById(R.id.nav_view);
-        progressBarHeader = nav_view.getHeaderView(0).findViewById(R.id.progressBarHeader);
-        tvUsername = nav_view.getHeaderView(0).findViewById(R.id.tvUsername);
-        flProgressbar = (FrameLayout) findViewById(R.id.flProgressbar);
-        flContainer = (FrameLayout) findViewById(R.id.flContainer);
+        progressBarHeader = binding.navView.getHeaderView(0).findViewById(R.id.progressBarHeader);
+        tvUsername = binding.navView.getHeaderView(0).findViewById(R.id.tvUsername);
 
         /*for (int i = 0; i < nav_view.getMenu().size(); i++) {
             MenuItem menuItem = nav_view.getMenu().getItem(i);
             menuItem.setVisible(true);
         }*/
 
-        nav_view.getMenu().setGroupVisible(R.id.grpCategory, false);
+        binding.navView.getMenu().setGroupVisible(R.id.grpCategory, false);
         setInProgress();
 
         if (!CU.isNetworkEnabled(mContext)) {
             Toast.makeText(mContext, "No Internet!", Toast.LENGTH_SHORT).show();
+            Dialog dgNoInternet = new Dialog(mContext);
+            dgNoInternet.setContentView(R.layout.dg_no_internet);
+            MaterialButton btnMobileData = dgNoInternet.findViewById(R.id.btnMobileData);
+            MaterialButton btnWifi = dgNoInternet.findViewById(R.id.btnWifi);
+            btnWifi.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+                }
+            });
+            btnMobileData.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS));
+                }
+            });
+            Window window = dgNoInternet.getWindow();
+            if (window != null) {
+                window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                window.setGravity(Gravity.CENTER);
+                window.setBackgroundDrawable(getDrawable(R.drawable.bg_dg_rounded));
+            }
+            dgNoInternet.setCancelable(false);
+            dgNoInternet.show();
+            return;
         }
 
         final FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -287,8 +306,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                     tvUsername.setText(documentSnapshot.getString(CS.name));
                                     setIcon(type);
                                     setMenu(type);
-                                    CU.displaySelectedFragment(new HomeFragment(mContext), getSupportFragmentManager(), R.id.flContainer);
-                                    toolbar.setTitle("Home");
+                                    CU.navigateTo(mContext, R.id.homeFragment);
                                 }
                             } catch (Exception ex) {
                                 Log.e(TAG, "onSuccess: " + ex.getMessage());
@@ -300,7 +318,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                             }
                             dgNewUser = new Dialog(mContext);
                             filePathUri = null;
-                            dgNewUser.setContentView(R.layout.dg_new_user);
+                            DgNewUserBinding bndNewUser = DgNewUserBinding.inflate(getLayoutInflater());
+                            dgNewUser.setContentView(bndNewUser.getRoot());
                             Window window = dgNewUser.getWindow();
                             if (window != null) {
                                 window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -310,26 +329,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
                             dgNewUser.show();
 
-                            final TextInputEditText etDOB = dgNewUser.findViewById(R.id.etDOB);
-                            final TextInputEditText etFullName = dgNewUser.findViewById(R.id.etFullName);
-                            final TextInputEditText etAddress = dgNewUser.findViewById(R.id.etAddress);
-                            final TextInputEditText etMobile = dgNewUser.findViewById(R.id.etMobile);
-                            final TextInputEditText etDoctorType = dgNewUser.findViewById(R.id.etDoctorType);
-                            final TextInputEditText etLicenseNo = dgNewUser.findViewById(R.id.etLicenseNo);
-                            final TextInputEditText etHospitalName = dgNewUser.findViewById(R.id.etHospitalName);
-                            final TextInputEditText etHospitalContactNo = dgNewUser.findViewById(R.id.etHospitalContactNo);
-                            final TextInputEditText etHospitalArea = dgNewUser.findViewById(R.id.etHospitalArea);
-                            final TextInputEditText etLabName = dgNewUser.findViewById(R.id.etLabName);
-                            final TextInputEditText etLabContactNo = dgNewUser.findViewById(R.id.etLabContactNo);
-                            final TextInputEditText etLabArea = dgNewUser.findViewById(R.id.etLabArea);
-                            final TextInputEditText etGovernmentArea = dgNewUser.findViewById(R.id.etGovernmentArea);
-                            final RadioGroup rgGender = dgNewUser.findViewById(R.id.rgGender);
-                            final RadioGroup rgDesignation = dgNewUser.findViewById(R.id.rgDesignation);
-                            SpinKitView progressBar = dgNewUser.findViewById(R.id.progressBar);
-                            RelativeLayout rlVerification = dgNewUser.findViewById(R.id.rlVerification);
-                            LinearLayout llDoctor = dgNewUser.findViewById(R.id.llDoctor);
-                            LinearLayout llGovernment = dgNewUser.findViewById(R.id.llGovernment);
-                            LinearLayout llLabAssistant = dgNewUser.findViewById(R.id.llLabAssistant);
                             dgNewUser.setCancelable(false);
                             tvFile = dgNewUser.findViewById(R.id.tvFile);
                             MaterialButton btnUpload = dgNewUser.findViewById(R.id.btnUpload);
@@ -344,54 +343,41 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                 }
                             });
 
-                            RelativeLayout rlHospital = dgNewUser.findViewById(R.id.rlHospital);
-                            LinearLayout llNewHospital = dgNewUser.findViewById(R.id.llNewHospital);
-                            FloatingActionButton fabAddHospital = dgNewUser.findViewById(R.id.fabAddHospital);
-                            FloatingActionButton fabHospital = dgNewUser.findViewById(R.id.fabHospital);
+                            bndNewUser.llNewLab.setVisibility(View.GONE);
+                            bndNewUser.rlLab.setVisibility(View.VISIBLE);
 
-                            RelativeLayout rlLab = dgNewUser.findViewById(R.id.rlLab);
-                            LinearLayout llNewLab = dgNewUser.findViewById(R.id.llNewLab);
-                            FloatingActionButton fabAddLab = dgNewUser.findViewById(R.id.fabAddLab);
-                            FloatingActionButton fabLab = dgNewUser.findViewById(R.id.fabLab);
-
-                            Spinner spnLab = dgNewUser.findViewById(R.id.spnLab);
-                            Spinner spnHospital = dgNewUser.findViewById(R.id.spnHospital);
-
-                            llNewLab.setVisibility(View.GONE);
-                            rlLab.setVisibility(View.VISIBLE);
-
-                            fabAddLab.setOnClickListener(new View.OnClickListener() {
+                            bndNewUser.fabAddLab.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    llNewLab.setVisibility(View.VISIBLE);
-                                    rlLab.setVisibility(View.GONE);
+                                    bndNewUser.llNewLab.setVisibility(View.VISIBLE);
+                                    bndNewUser.rlLab.setVisibility(View.GONE);
                                 }
                             });
 
-                            fabLab.setOnClickListener(new View.OnClickListener() {
+                            bndNewUser.fabLab.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    llNewLab.setVisibility(View.GONE);
-                                    rlLab.setVisibility(View.VISIBLE);
+                                    bndNewUser.llNewLab.setVisibility(View.GONE);
+                                    bndNewUser.rlLab.setVisibility(View.VISIBLE);
                                 }
                             });
 
-                            llNewHospital.setVisibility(View.GONE);
-                            rlHospital.setVisibility(View.VISIBLE);
+                            bndNewUser.llNewHospital.setVisibility(View.GONE);
+                            bndNewUser.rlHospital.setVisibility(View.VISIBLE);
 
-                            fabAddHospital.setOnClickListener(new View.OnClickListener() {
+                            bndNewUser.fabAddHospital.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    llNewHospital.setVisibility(View.VISIBLE);
-                                    rlHospital.setVisibility(View.GONE);
+                                    bndNewUser.llNewHospital.setVisibility(View.VISIBLE);
+                                    bndNewUser.rlHospital.setVisibility(View.GONE);
                                 }
                             });
 
-                            fabHospital.setOnClickListener(new View.OnClickListener() {
+                            bndNewUser.fabHospital.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    llNewHospital.setVisibility(View.GONE);
-                                    rlHospital.setVisibility(View.VISIBLE);
+                                    bndNewUser.llNewHospital.setVisibility(View.GONE);
+                                    bndNewUser.rlHospital.setVisibility(View.VISIBLE);
                                 }
                             });
 
@@ -414,7 +400,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                 R.id.tvItem,
                                                                 alHospital);
 
-                                                spnHospital.setAdapter(adapter);
+                                                bndNewUser.spnHospital.setAdapter(adapter);
                                             }
                                         }
                                     })
@@ -432,7 +418,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                         @Override
                                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
                                             alLab.clear();
-                                            alLab.add(new Laboratory("-- Select Laboratoty --", -1, "", ""));
+                                            alLab.add(new Laboratory("-- Select Laboratory --", -1, "", ""));
                                             for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
                                                 Laboratory lab = doc.toObject(Laboratory.class);
                                                 alLab.add(lab);
@@ -444,7 +430,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                 R.id.tvItem,
                                                                 alLab);
 
-                                                spnLab.setAdapter(adapterLab);
+                                                bndNewUser.spnLab.setAdapter(adapterLab);
                                             }
                                         }
                                     })
@@ -464,120 +450,120 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                             });
 
                             btnSubmit.setVisibility(View.VISIBLE);
-                            progressBar.setVisibility(View.GONE);
+                            bndNewUser.progressBar.setVisibility(View.GONE);
 
                             btnSubmit.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    etAddress.clearFocus();
-                                    if (CU.isNullOrEmpty(etFullName)) {
-                                        etFullName.setError("Field Required");
-                                        etFullName.requestFocus();
+                                    bndNewUser.etAddress.clearFocus();
+                                    if (CU.isNullOrEmpty(bndNewUser.etFullName)) {
+                                        bndNewUser.etFullName.setError("Field Required");
+                                        bndNewUser.etFullName.requestFocus();
                                         return;
                                     }
-                                    if (CU.isNullOrEmpty(etDOB)) {
-                                        etDOB.setError("Field Required");
-                                        etDOB.requestFocus();
+                                    if (CU.isNullOrEmpty(bndNewUser.etDOB)) {
+                                        bndNewUser.etDOB.setError("Field Required");
+                                        bndNewUser.etDOB.requestFocus();
                                         return;
-                                    } else if (etDOB.getText() != null && !CU.isDate(etDOB.getText().toString())) {
-                                        etDOB.setError("Badly formatted date");
-                                        return;
-                                    }
-                                    if (CU.isNullOrEmpty(etMobile)) {
-                                        etMobile.setError("Field Required");
-                                        etMobile.requestFocus();
-                                        return;
-                                    } else if (etMobile.getText() != null && !CU.isValidMobile(etMobile.getText().toString())) {
-                                        etMobile.setError("Invalid mobile no.");
-                                    }
-                                    if (CU.isNullOrEmpty(etAddress)) {
-                                        etAddress.setError("Field Required");
-                                        etAddress.requestFocus();
+                                    } else if (bndNewUser.etDOB.getText() != null && !CU.isDate(bndNewUser.etDOB.getText().toString())) {
+                                        bndNewUser.etDOB.setError("Badly formatted date");
                                         return;
                                     }
-                                    if (rgGender.getCheckedRadioButtonId() == RadioGroup.NO_ID && rgGender.getChildCount() > 0) {
-                                        ((MaterialRadioButton) rgGender.getChildAt(0)).setError("Gender selection required");
-                                        rgGender.requestFocus();
+                                    if (CU.isNullOrEmpty(bndNewUser.etMobile)) {
+                                        bndNewUser.etMobile.setError("Field Required");
+                                        bndNewUser.etMobile.requestFocus();
+                                        return;
+                                    } else if (bndNewUser.etMobile.getText() != null && !CU.isValidMobile(bndNewUser.etMobile.getText().toString())) {
+                                        bndNewUser.etMobile.setError("Invalid mobile no.");
+                                    }
+                                    if (CU.isNullOrEmpty(bndNewUser.etAddress)) {
+                                        bndNewUser.etAddress.setError("Field Required");
+                                        bndNewUser.etAddress.requestFocus();
                                         return;
                                     }
-                                    if (rgDesignation.getCheckedRadioButtonId() == RadioGroup.NO_ID && rgDesignation.getChildCount() > 0) {
-                                        ((MaterialRadioButton) rgDesignation.getChildAt(0)).setError("Designation selection required");
-                                        rgDesignation.requestFocus();
+                                    if (bndNewUser.rgGender.getCheckedRadioButtonId() == RadioGroup.NO_ID && bndNewUser.rgGender.getChildCount() > 0) {
+                                        ((MaterialRadioButton) bndNewUser.rgGender.getChildAt(0)).setError("Gender selection required");
+                                        bndNewUser.rgGender.requestFocus();
+                                        return;
+                                    }
+                                    if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == RadioGroup.NO_ID && bndNewUser.rgDesignation.getChildCount() > 0) {
+                                        ((MaterialRadioButton) bndNewUser.rgDesignation.getChildAt(0)).setError("Designation selection required");
+                                        bndNewUser.rgDesignation.requestFocus();
                                         return;
                                     }
 
-                                    switch (rgDesignation.getCheckedRadioButtonId()) {
+                                    switch (bndNewUser.rgDesignation.getCheckedRadioButtonId()) {
                                         case R.id.rbtnDoctor:
-                                            if (CU.isNullOrEmpty(etDoctorType)) {
-                                                etDoctorType.setError("Field required!");
-                                                etDoctorType.requestFocus();
+                                            if (CU.isNullOrEmpty(bndNewUser.etDoctorType)) {
+                                                bndNewUser.etDoctorType.setError("Field required!");
+                                                bndNewUser.etDoctorType.requestFocus();
                                                 return;
                                             }
 
-                                            if (CU.isNullOrEmpty(etLicenseNo)) {
-                                                etLicenseNo.setError("Field required!");
-                                                etLicenseNo.requestFocus();
+                                            if (CU.isNullOrEmpty(bndNewUser.etLicenseNo)) {
+                                                bndNewUser.etLicenseNo.setError("Field required!");
+                                                bndNewUser.etLicenseNo.requestFocus();
                                                 return;
                                             }
 
-                                            if (rlHospital.getVisibility() == View.VISIBLE) {
-                                                if (spnHospital.getSelectedItemPosition() == 0) {
+                                            if (bndNewUser.rlHospital.getVisibility() == View.VISIBLE) {
+                                                if (bndNewUser.spnHospital.getSelectedItemPosition() == 0) {
                                                     Toast.makeText(mContext, "Select Hospital first!", Toast.LENGTH_SHORT).show();
                                                     return;
                                                 }
                                             } else {
-                                                if (CU.isNullOrEmpty(etHospitalName)) {
-                                                    etHospitalName.setError("Field required!");
-                                                    etHospitalName.requestFocus();
+                                                if (CU.isNullOrEmpty(bndNewUser.etHospitalName)) {
+                                                    bndNewUser.etHospitalName.setError("Field required!");
+                                                    bndNewUser.etHospitalName.requestFocus();
                                                     return;
                                                 }
-                                                if (CU.isNullOrEmpty(etHospitalContactNo)) {
-                                                    etHospitalContactNo.setError("Field required!");
-                                                    etHospitalContactNo.requestFocus();
+                                                if (CU.isNullOrEmpty(bndNewUser.etHospitalContactNo)) {
+                                                    bndNewUser.etHospitalContactNo.setError("Field required!");
+                                                    bndNewUser.etHospitalContactNo.requestFocus();
                                                     return;
                                                 }
-                                                if (CU.isNullOrEmpty(etHospitalArea)) {
-                                                    etHospitalArea.setError("Field required!");
-                                                    etHospitalArea.requestFocus();
+                                                if (CU.isNullOrEmpty(bndNewUser.etHospitalArea)) {
+                                                    bndNewUser.etHospitalArea.setError("Field required!");
+                                                    bndNewUser.etHospitalArea.requestFocus();
                                                     return;
                                                 }
                                             }
 
                                             break;
                                         case R.id.rbtnLabAssistant:
-                                            if (rlLab.getVisibility() == View.VISIBLE) {
-                                                if (spnLab.getSelectedItemPosition() == 0) {
+                                            if (bndNewUser.rlLab.getVisibility() == View.VISIBLE) {
+                                                if (bndNewUser.spnLab.getSelectedItemPosition() == 0) {
                                                     Toast.makeText(mContext, "Select lab first!", Toast.LENGTH_SHORT).show();
                                                     return;
                                                 }
                                             } else {
-                                                if (CU.isNullOrEmpty(etLabName)) {
-                                                    etLabName.setError("Field required!");
-                                                    etLabName.requestFocus();
+                                                if (CU.isNullOrEmpty(bndNewUser.etLabName)) {
+                                                    bndNewUser.etLabName.setError("Field required!");
+                                                    bndNewUser.etLabName.requestFocus();
                                                     return;
                                                 }
-                                                if (CU.isNullOrEmpty(etLabContactNo)) {
-                                                    etLabContactNo.setError("Field required!");
-                                                    etLabContactNo.requestFocus();
+                                                if (CU.isNullOrEmpty(bndNewUser.etLabContactNo)) {
+                                                    bndNewUser.etLabContactNo.setError("Field required!");
+                                                    bndNewUser.etLabContactNo.requestFocus();
                                                     return;
                                                 }
-                                                if (CU.isNullOrEmpty(etLabArea)) {
-                                                    etLabArea.setError("Field required!");
-                                                    etLabArea.requestFocus();
+                                                if (CU.isNullOrEmpty(bndNewUser.etLabArea)) {
+                                                    bndNewUser.etLabArea.setError("Field required!");
+                                                    bndNewUser.etLabArea.requestFocus();
                                                     return;
                                                 }
                                             }
                                             break;
                                         case R.id.rbtnGovernment:
-                                            if (CU.isNullOrEmpty(etGovernmentArea)) {
-                                                etGovernmentArea.setError("Field required!");
-                                                etGovernmentArea.requestFocus();
+                                            if (CU.isNullOrEmpty(bndNewUser.etGovernmentArea)) {
+                                                bndNewUser.etGovernmentArea.setError("Field required!");
+                                                bndNewUser.etGovernmentArea.requestFocus();
                                                 return;
                                             }
                                             break;
                                     }
 
-                                    if ((CU.isNullOrEmpty(tvFile) || tvFile.getText().toString().equals("Choose File") || filePathUri == null) && rgDesignation.getCheckedRadioButtonId() != R.id.rbtnPatient) {
+                                    if ((CU.isNullOrEmpty(tvFile) || tvFile.getText().toString().equals("Choose File") || filePathUri == null) && bndNewUser.rgDesignation.getCheckedRadioButtonId() != R.id.rbtnPatient) {
                                         tvFile.setError("Verification Proof required");
                                         tvFile.requestFocus();
                                         Toast.makeText(mContext, "Please upload a proof!", Toast.LENGTH_SHORT).show();
@@ -585,37 +571,37 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                     }
 
                                     db.collection(CS.Doctor)
-                                            .whereEqualTo(CS.licenseno, etLicenseNo.getText().toString().trim())
+                                            .whereEqualTo(CS.licenseno, bndNewUser.etLicenseNo.getText().toString().trim())
                                             .get()
                                             .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                                                 @Override
                                                 public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
                                                     if (queryDocumentSnapshots.size() > 0) {
-                                                        etLicenseNo.setError("License No");
-                                                        etLicenseNo.requestFocus();
+                                                        bndNewUser.etLicenseNo.setError("License No");
+                                                        bndNewUser.etLicenseNo.requestFocus();
                                                     } else {
                                                         btnSubmit.setVisibility(View.GONE);
-                                                        progressBar.setVisibility(View.VISIBLE);
+                                                        bndNewUser.progressBar.setVisibility(View.VISIBLE);
 
                                                         long type = CS.PATIENT, Gender = CS.NA;
-                                                        if (rgGender.getCheckedRadioButtonId() == R.id.rbtnMale) {
+                                                        if (bndNewUser.rgGender.getCheckedRadioButtonId() == R.id.rbtnMale) {
                                                             Gender = CS.Male;
-                                                        } else if (rgGender.getCheckedRadioButtonId() == R.id.rbtnFemale) {
+                                                        } else if (bndNewUser.rgGender.getCheckedRadioButtonId() == R.id.rbtnFemale) {
                                                             Gender = CS.Female;
                                                         }
 
-                                                        if (rgDesignation.getCheckedRadioButtonId() == R.id.rbtnDoctor) {
+                                                        if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnDoctor) {
                                                             type = CS.DOCTOR;
-                                                        } else if (rgDesignation.getCheckedRadioButtonId() == R.id.rbtnLabAssistant) {
+                                                        } else if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnLabAssistant) {
                                                             type = CS.LAB;
-                                                        } else if (rgDesignation.getCheckedRadioButtonId() == R.id.rbtnGovernment) {
+                                                        } else if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnGovernment) {
                                                             type = CS.GOVERNMENT;
                                                         }
 
                                                         try {
                                                             final long finalGender = Gender;
                                                             final long finalType = type;
-                                                            if (rgDesignation.getCheckedRadioButtonId() == R.id.rbtnPatient) {
+                                                            if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnPatient) {
                                                                 locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
                                                                 String city = null, state = null, country = null;
                                                                 if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -637,9 +623,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                 String s = (city != null ? city + ", " + state + ", " + country : "");
                                                                 Log.e(TAG, "onClick: " + s);
 
-                                                                User user = new User(firebaseUser.getUid(), etFullName.getText().toString(), s,
-                                                                        firebaseUser.getEmail(), "", finalType, finalGender, Long.parseLong(etMobile.getText().toString()),
-                                                                        false, CU.getDate(etDOB.getText().toString()), new Date(System.currentTimeMillis()));
+                                                                User user = new User(firebaseUser.getUid(), bndNewUser.etFullName.getText().toString(), s,
+                                                                        firebaseUser.getEmail(), "", finalType, finalGender, Long.parseLong(bndNewUser.etMobile.getText().toString()),
+                                                                        false, CU.getDate(bndNewUser.etDOB.getText().toString()), new Date(System.currentTimeMillis()));
 
                                                                 Patient patient = new Patient(null, null, user.getUserid(), String.valueOf(System.currentTimeMillis()));
                                                                 db.collection(CS.User)
@@ -675,9 +661,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                                     public void onSuccess(Uri uri) {
                                                                                         Log.e("successfully get uri", "onSuccess: " + uri);
 
-                                                                                        User user = new User(firebaseUser.getUid(), etFullName.getText().toString(), etAddress.getText().toString(),
-                                                                                                firebaseUser.getEmail(), uri.toString(), finalType, finalGender, Long.parseLong(etMobile.getText().toString()),
-                                                                                                false, CU.getDate(etDOB.getText().toString()), new Date(System.currentTimeMillis()));
+                                                                                        User user = new User(firebaseUser.getUid(), bndNewUser.etFullName.getText().toString(), bndNewUser.etAddress.getText().toString(),
+                                                                                                firebaseUser.getEmail(), uri.toString(), finalType, finalGender, Long.parseLong(bndNewUser.etMobile.getText().toString()),
+                                                                                                false, CU.getDate(bndNewUser.etDOB.getText().toString()), new Date(System.currentTimeMillis()));
 
                                                                                         db.collection(CS.User).document(firebaseUser.getUid())
                                                                                                 .set(user)
@@ -688,24 +674,24 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                                                     }
                                                                                                 });
 
-                                                                                        switch (rgDesignation.getCheckedRadioButtonId()) {
+                                                                                        switch (bndNewUser.rgDesignation.getCheckedRadioButtonId()) {
                                                                                             case R.id.rbtnDoctor:
                                                                                                 Hospital hospital = new Hospital("", -1, "", "");
-                                                                                                if (rlHospital.getVisibility() == View.VISIBLE) {
+                                                                                                if (bndNewUser.rlHospital.getVisibility() == View.VISIBLE) {
                                                                                                     try {
-                                                                                                        hospital = (Hospital) spnHospital.getSelectedItem();
+                                                                                                        hospital = (Hospital) bndNewUser.spnHospital.getSelectedItem();
                                                                                                     } catch (Exception ex) {
                                                                                                         Log.e(TAG, "onSuccess: error: " + ex.getMessage());
                                                                                                     }
                                                                                                 } else {
-                                                                                                    hospital = new Hospital(etAddress.getText().toString().trim(),
-                                                                                                            Long.valueOf(etHospitalContactNo.getText().toString().trim()),
+                                                                                                    hospital = new Hospital(bndNewUser.etAddress.getText().toString().trim(),
+                                                                                                            Long.valueOf(bndNewUser.etHospitalContactNo.getText().toString().trim()),
                                                                                                             String.valueOf(System.currentTimeMillis()),
-                                                                                                            etHospitalName.getText().toString().trim());
+                                                                                                            bndNewUser.etHospitalName.getText().toString().trim());
                                                                                                 }
 
-                                                                                                Doctor doctor = new Doctor(String.valueOf(System.currentTimeMillis()), etDoctorType.getText().toString().trim(),
-                                                                                                        hospital.getHospitalid(), user.getUserid(), etLicenseNo.getText().toString().trim());
+                                                                                                Doctor doctor = new Doctor(String.valueOf(System.currentTimeMillis()), bndNewUser.etDoctorType.getText().toString().trim(),
+                                                                                                        hospital.getHospitalid(), user.getUserid(), bndNewUser.etLicenseNo.getText().toString().trim());
 
                                                                                                 db.collection(CS.Hospital)
                                                                                                         .document(hospital.getHospitalid())
@@ -731,13 +717,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                                                 break;
                                                                                             case R.id.rbtnLabAssistant:
                                                                                                 Laboratory laboratory = new Laboratory("", -1, "", "");
-                                                                                                if (rlLab.getVisibility() == View.VISIBLE) {
-                                                                                                    laboratory = (Laboratory) spnLab.getSelectedItem();
+                                                                                                if (bndNewUser.rlLab.getVisibility() == View.VISIBLE) {
+                                                                                                    laboratory = (Laboratory) bndNewUser.spnLab.getSelectedItem();
                                                                                                 } else {
-                                                                                                    laboratory = new Laboratory(etAddress.getText().toString().trim(),
-                                                                                                            Long.valueOf(etLabContactNo.getText().toString().trim()),
+                                                                                                    laboratory = new Laboratory(bndNewUser.etAddress.getText().toString().trim(),
+                                                                                                            Long.valueOf(bndNewUser.etLabContactNo.getText().toString().trim()),
                                                                                                             String.valueOf(System.currentTimeMillis()),
-                                                                                                            etLabName.getText().toString().trim());
+                                                                                                            bndNewUser.etLabName.getText().toString().trim());
                                                                                                 }
                                                                                                 LabAssistant labAssistant = new LabAssistant(String.valueOf(System.currentTimeMillis()),
                                                                                                         laboratory.getLabid(), user.getUserid());
@@ -766,7 +752,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                                                                                 break;
                                                                                             case R.id.rbtnGovernment:
                                                                                                 Government government = new Government(String.valueOf(System.currentTimeMillis()),
-                                                                                                        user.getUserid(), etGovernmentArea.getText().toString().trim());
+                                                                                                        user.getUserid(), bndNewUser.etGovernmentArea.getText().toString().trim());
                                                                                                 db.collection(CS.Government)
                                                                                                         .document(government.getGovernmentid())
                                                                                                         .set(government)
@@ -817,52 +803,52 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                 }
                             });
 
-                            rgDesignation.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+                            bndNewUser.rgDesignation.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
                                 @Override
                                 public void onCheckedChanged(RadioGroup group, int checkedId) {
-                                    ((MaterialRadioButton) rgDesignation.getChildAt(0)).setError(null);
-                                    llDoctor.setVisibility(View.GONE);
-                                    llLabAssistant.setVisibility(View.GONE);
-                                    llGovernment.setVisibility(View.GONE);
-                                    rlVerification.setVisibility(View.VISIBLE);
+                                    ((MaterialRadioButton) bndNewUser.rgDesignation.getChildAt(0)).setError(null);
+                                    bndNewUser.llDoctor.setVisibility(View.GONE);
+                                    bndNewUser.llLabAssistant.setVisibility(View.GONE);
+                                    bndNewUser.llGovernment.setVisibility(View.GONE);
+                                    bndNewUser.rlVerification.setVisibility(View.VISIBLE);
                                     if (checkedId == R.id.rbtnDoctor) {
-                                        llDoctor.setVisibility(View.VISIBLE);
+                                        bndNewUser.llDoctor.setVisibility(View.VISIBLE);
                                     } else if (checkedId == R.id.rbtnLabAssistant) {
-                                        llLabAssistant.setVisibility(View.VISIBLE);
+                                        bndNewUser.llLabAssistant.setVisibility(View.VISIBLE);
                                     } else if (checkedId == R.id.rbtnGovernment) {
-                                        llGovernment.setVisibility(View.VISIBLE);
+                                        bndNewUser.llGovernment.setVisibility(View.VISIBLE);
                                     } else {
-                                        rlVerification.setVisibility(View.GONE);
+                                        bndNewUser.rlVerification.setVisibility(View.GONE);
                                     }
                                 }
                             });
 
-                            rgGender.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+                            bndNewUser.rgGender.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
                                 @Override
                                 public void onCheckedChanged(RadioGroup group, int checkedId) {
-                                    ((MaterialRadioButton) rgGender.getChildAt(0)).setError(null);
+                                    ((MaterialRadioButton) bndNewUser.rgGender.getChildAt(0)).setError(null);
                                 }
                             });
 
-                            etDOB.setShowSoftInputOnFocus(false);
+                            bndNewUser.etDOB.setShowSoftInputOnFocus(false);
                             final String dpTitle = "Select your birthdate";
-                            etDOB.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                            bndNewUser.etDOB.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                                 @Override
                                 public void onFocusChange(View v, boolean hasFocus) {
                                     if (hasFocus)
-                                        showDatePicker(etDOB, dpTitle);
+                                        showDatePicker(bndNewUser.etDOB, dpTitle);
                                 }
                             });
-                            etDOB.setOnClickListener(new View.OnClickListener() {
+                            bndNewUser.etDOB.setOnClickListener(new View.OnClickListener() {
                                 @Override
                                 public void onClick(View v) {
-                                    showDatePicker(etDOB, dpTitle);
+                                    showDatePicker(bndNewUser.etDOB, dpTitle);
                                 }
                             });
-                            etDOB.setOnLongClickListener(new View.OnLongClickListener() {
+                            bndNewUser.etDOB.setOnLongClickListener(new View.OnLongClickListener() {
                                 @Override
                                 public boolean onLongClick(View v) {
-                                    showDatePicker(etDOB, dpTitle);
+                                    showDatePicker(bndNewUser.etDOB, dpTitle);
                                     return false;
                                 }
                             });
@@ -871,7 +857,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                 @Override
                                 public void onDismiss(DialogInterface dialog) {
                                     btnSubmit.setVisibility(View.VISIBLE);
-                                    progressBar.setVisibility(View.GONE);
+                                    bndNewUser.progressBar.setVisibility(View.GONE);
                                     MainActivity.this.recreate();
                                 }
                             });
@@ -883,79 +869,23 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     public void onFailure(@NonNull Exception e) {
                         setProgressCompleted();
                         Log.e(TAG, "onFailure: error: " + e.getMessage());
-                        Dialog dgNoInternet = new Dialog(mContext);
-                        dgNoInternet.setContentView(R.layout.dg_no_internet);
-                        MaterialButton btnMobileData = dgNoInternet.findViewById(R.id.btnMobileData);
-                        MaterialButton btnWifi = dgNoInternet.findViewById(R.id.btnWifi);
-                        btnWifi.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
-                            }
-                        });
-                        btnMobileData.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS));
-                            }
-                        });
-                        Window window = dgNoInternet.getWindow();
-                        if (window != null) {
-                            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                            window.setGravity(Gravity.CENTER);
-                            window.setBackgroundDrawable(getDrawable(R.drawable.bg_dg_rounded));
-                        }
-                        dgNoInternet.setCancelable(false);
-                        dgNoInternet.show();
                     }
                 });
 
-        nav_view.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
-            private Fragment fragment;
+        binding.navView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
 
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+
+                binding.drawerLayout.closeDrawer(GravityCompat.START);
                 switch (item.getItemId()) {
-                    case R.id.navVerify:
-                        toolbar.setTitle("Verify");
-                        fragment = new VerifyFragment(mContext);
-                        break;
-                    case R.id.navHome:
-                        toolbar.setTitle("Home");
-                        fragment = new HomeFragment(mContext);
-                        break;
-                    case R.id.navHistory:
-                        toolbar.setTitle("History");
-                        fragment = new HistoryFragment(mContext);
-                        break;
-                    case R.id.navReport:
-                        toolbar.setTitle("Report");
-                        fragment = new ReportsFragment(mContext);
-                        break;
-                    case R.id.navPatient:
-                        toolbar.setTitle("Patient");
-                        fragment = new PatientFragment(mContext);
-                        break;
-                    case R.id.navSetting:
-                        toolbar.setTitle("Setting");
-                        fragment = new SettingsFragment(mContext);
-                        break;
-                    case R.id.navAnalysis:
-                        toolbar.setTitle("Analysis");
-                        fragment = new AnalysisFragment(mContext);
-                        break;
-                    case R.id.navAbout:
-                        toolbar.setTitle("About");
-                        fragment = new AboutFragment(mContext);
-                        break;
                     case R.id.navLogout:
                         FirebaseAuth.getInstance().signOut();
                         startActivity(new Intent(mContext, LoginActivity.class));
                         finish();
-                        break;
+                        return true;
                 }
-                CU.displaySelectedFragment(fragment, getSupportFragmentManager(), R.id.flContainer);
-                drawer.closeDrawer(GravityCompat.START);
+                CU.navigateTo(mContext, item.getItemId());
                 return true;
             }
         });
@@ -986,20 +916,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
     public void setInProgress() {
-        flContainer.setActivated(false);
-        CU.showProgressBar(flProgressbar);
+        CU.showProgressBar(binding.flProgressbar);
         CU.showProgressBar(progressBarHeader);
     }
 
     public void setProgressCompleted() {
-        flContainer.setActivated(true);
-        CU.hideProgressBar(flProgressbar);
+        CU.hideProgressBar(binding.flProgressbar);
         CU.hideProgressBar(progressBarHeader);
     }
 
     private void setIcon(long op) {
-        CircleImageView civUser = nav_view.getHeaderView(0).findViewById(R.id.civHeaderDP);
-        TextView tvDesignation = nav_view.getHeaderView(0).findViewById(R.id.tvDesignation);
+        CircleImageView civUser = binding.navView.getHeaderView(0).findViewById(R.id.civHeaderDP);
+        TextView tvDesignation = binding.navView.getHeaderView(0).findViewById(R.id.tvDesignation);
         switch ((int) op) {
             case CS.DOCTOR:
                 tvDesignation.setText("Doctor");
@@ -1026,22 +954,22 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     public void enableCustomActionBar() {
         toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.addDrawerListener(toggle);
+                this, binding.drawerLayout, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        binding.drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
     }
 
     public void setMenu(long op) {
-        Menu menu = nav_view.getMenu();
-        MenuItem navHistory = menu.findItem(R.id.navHistory);
-        MenuItem navAnalysis = menu.findItem(R.id.navAnalysis);
-        MenuItem navReport = menu.findItem(R.id.navReport);
-        MenuItem navPatient = menu.findItem(R.id.navPatient);
-        MenuItem navHome = menu.findItem(R.id.navHome);
-        MenuItem navSetting = menu.findItem(R.id.navSetting);
-        MenuItem navAbout = menu.findItem(R.id.navAbout);
+        Menu menu = binding.navView.getMenu();
+        MenuItem navHistory = menu.findItem(R.id.historyFragment);
+        MenuItem navAnalysis = menu.findItem(R.id.analysisFragment);
+        MenuItem navReport = menu.findItem(R.id.reportsFragment);
+        MenuItem navPatient = menu.findItem(R.id.patientFragment);
+        MenuItem navHome = menu.findItem(R.id.homeFragment);
+        MenuItem navSetting = menu.findItem(R.id.settingsFragment);
+        MenuItem navAbout = menu.findItem(R.id.aboutFragment);
         MenuItem navLogout = menu.findItem(R.id.navLogout);
-        MenuItem navVerify = menu.findItem(R.id.navVerify);
+        MenuItem navVerify = menu.findItem(R.id.verifyFragment);
         navHome.setVisible(true);
         navAbout.setVisible(true);
         navSetting.setVisible(false);
@@ -1195,8 +1123,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         super.onResume();
 
         if (fromReport) {
-            nav_view.getMenu().performIdentifierAction(R.id.navPatient, 0);
-            nav_view.setCheckedItem(R.id.navPatient);
+            binding.navView.getMenu().performIdentifierAction(R.id.patientFragment, 0);
+            binding.navView.setCheckedItem(R.id.patientFragment);
             fromReport = false;
         }
 

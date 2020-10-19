@@ -10,6 +10,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
@@ -21,7 +22,6 @@ import android.view.Window;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,20 +29,19 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textview.MaterialTextView;
 import com.google.firebase.auth.FirebaseUser;
 import com.shrewd.healthcard.Activity.MainActivity;
-import com.shrewd.healthcard.Fragment.HomeFragment;
-
-import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
-
 import com.shrewd.healthcard.R;
-import com.shrewd.healthcard.Utilities.CS;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 
 public class CU {
 
@@ -117,7 +116,7 @@ public class CU {
     }
 
     public static void setLayout(long op, FrameLayout flDoctor, FrameLayout flGovernment, FrameLayout flLab, FrameLayout flPatient, FrameLayout flAdmin) {
-        switch ((int)op) {
+        switch ((int) op) {
             case CS.DOCTOR:
                 if (flDoctor != null)
                     flDoctor.setVisibility(View.VISIBLE);
@@ -321,8 +320,7 @@ public class CU {
                 return false;
             }
             Log.e(TAG, "isNullOrEmpty: TextView true" + str);
-        }
-        else {
+        } else {
             if (!"".equals(obj.toString())) {
                 Log.e(TAG, "isNullOrEmpty: false");
                 return false;
@@ -462,5 +460,13 @@ public class CU {
                 .getAuthority());
     }
 
+    public static void navigateTo(Context mContext, int id) {
+        navigateTo(mContext, id, null);
+    }
+
+    public static void navigateTo(Context mContext, int id, Bundle bundle) {
+        NavController navController = Navigation.findNavController((Activity) mContext, R.id.nav_host_fragment);
+        navController.navigate(id, bundle);
+    }
 
 }

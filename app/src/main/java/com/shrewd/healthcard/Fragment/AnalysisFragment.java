@@ -5,11 +5,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,23 +13,14 @@ import android.view.ViewGroup;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.charts.PieChart;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
-import com.github.mikephil.charting.data.PieEntry;
-import com.github.mikephil.charting.interfaces.datasets.IBarDataSet;
-import com.github.mikephil.charting.utils.ColorTemplate;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.shrewd.healthcard.Adapter.AnalysisAdapter;
 import com.shrewd.healthcard.R;
-import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.databinding.FragmentAnalysisBinding;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -44,10 +30,11 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -56,7 +43,7 @@ public class AnalysisFragment extends Fragment {
 
 
     private static final String TAG = "AnalysisFragment";
-    private final Context mContext;
+    private Context mContext;
     private int clientTextColor;
     private String clientMessage;
     private ClientThread clientThread;
@@ -71,12 +58,10 @@ public class AnalysisFragment extends Fragment {
     private LineData lcPatientlineData;
     private ArrayList lcPatientlineEntries;
     private BarChart bcPatient;
-    private RecyclerView rvPatient;
+    private FragmentAnalysisBinding binding;
 
-    public AnalysisFragment(Context mContext) {
+    public AnalysisFragment() {
         // Required empty public constructor
-        this.mContext = mContext;
-        clientTextColor = mContext.getColor(R.color.colorAccent);
     }
 
 
@@ -84,17 +69,22 @@ public class AnalysisFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view = inflater.inflate(R.layout.fragment_analysis, container, false);
-        rvPatient = view.findViewById(R.id.rvPatient);
-        pcPatient = view.findViewById(R.id.pcPatient);
-        pcPatient.setCenterText("Disease");
-        pcPatient.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
-        pcPatient.getDescription().setEnabled(false);
+        binding = FragmentAnalysisBinding.inflate(getLayoutInflater(), container, false);
+        mContext = getContext();
+        clientTextColor = mContext.getColor(R.color.colorAccent);
+//        pcPatient = view.findViewById(R.id.pcPatient);
+//        pcPatient.setCenterText("Disease");
+//        pcPatient.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
+//        pcPatient.getDescription().setEnabled(false);
 
-        lcPatient = view.findViewById(R.id.lcPatient);
-        bcPatient = view.findViewById(R.id.bcPatient);
+        AnalysisAdapter analysisFragment = new AnalysisAdapter(mContext);
+        binding.rvAnalysis.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+        binding.rvAnalysis.setAdapter(analysisFragment);
 
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
+//        lcPatient = view.findViewById(R.id.lcPatient);
+//        bcPatient = view.findViewById(R.id.bcPatient);
+
+        /*FirebaseFirestore db = FirebaseFirestore.getInstance();
         db.collection("AWS")
                 .get()
                 .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
@@ -156,8 +146,8 @@ public class AnalysisFragment extends Fragment {
                             Log.e(TAG, "onSuccess: ***");
                         }
                     }
-                });
-        return view;
+                });*/
+        return binding.getRoot();
     }
 
     class ClientThread implements Runnable {
@@ -239,7 +229,7 @@ public class AnalysisFragment extends Fragment {
                                 }
 
 //                                lineEntries.add(new BarEntry(0f, 0));
-                                BarDataSet set1 = new BarDataSet(lineEntries, "The year 2017");
+                                /*BarDataSet set1 = new BarDataSet(lineEntries, "The year 2017");
                                 set1.setColors(ColorTemplate.MATERIAL_COLORS);
                                 ArrayList<IBarDataSet> dataSets = new ArrayList<IBarDataSet>();
                                 dataSets.add(set1);
@@ -251,11 +241,9 @@ public class AnalysisFragment extends Fragment {
 
                                 bcPatient.setTouchEnabled(false);
                                 bcPatient.setData(data);
-                                bcPatient.animateY(1500);
+                                bcPatient.animateY(1500);*/
 
-                                AnalysisAdapter analysisFragment = new AnalysisAdapter(mContext);
-                                rvPatient.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
-                                rvPatient.setAdapter(analysisFragment);
+
 
                                 /*for (int i = 0; i < alData.length; i++) {
 //                                    Log.e(TAG, "run: " + Float.parseFloat(String.valueOf(alData[i])));

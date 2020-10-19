@@ -6,7 +6,6 @@
     android:orientation="vertical">
 
     <LinearLayout
-
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
@@ -19,7 +18,7 @@
             android:layout_gravity="center"
             android:tint="@color/black"
             android:layout_marginTop="@dimen/_5sdp"
-            android:src="@mipmap/icon" />
+            android:src="@mipmap/ic_launcher" />
 
         <TextView
             android:id="@+id/tvUsername"
