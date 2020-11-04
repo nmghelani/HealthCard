@@ -2,26 +2,26 @@ package com.shrewd.healthcard.ModelClass;
 
 public class Hospital {
 
-    private String address, hospitalid, name;
-    private long contactno;
+    private String address, hospital_id, name;
+    private long contact_no;
 
     public Hospital(){
 
     }
 
-    public Hospital(String address, long contactno, String hospitalid, String name) {
+    public Hospital(String address, long contact_no, String hospital_id, String name) {
         this.address = address;
-        this.contactno = contactno;
-        this.hospitalid = hospitalid;
+        this.contact_no = contact_no;
+        this.hospital_id = hospital_id;
         this.name = name;
     }
 
     @Override
     public String toString() {
-        if (contactno == -1) {
+        if (contact_no == -1) {
             return "-- Select Hospital --";
         } else {
-            return name + ", " + address + ", " + contactno;
+            return name + ", " + address + ", " + contact_no;
         }
     }
 
@@ -29,12 +29,12 @@ public class Hospital {
         return address;
     }
 
-    public long getContactno() {
-        return contactno;
+    public long getContact_no() {
+        return contact_no;
     }
 
-    public String getHospitalid() {
-        return hospitalid;
+    public String getHospital_id() {
+        return hospital_id;
     }
 
     public String getName() {

@@ -1,10 +1,15 @@
 package com.shrewd.healthcard.Utilities;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -17,6 +22,7 @@ import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Patterns;
+import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.inputmethod.InputMethodManager;
@@ -25,17 +31,26 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textview.MaterialTextView;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.shrewd.healthcard.Activity.MainActivity;
+import com.shrewd.healthcard.BuildConfig;
 import com.shrewd.healthcard.R;
+import com.shrewd.healthcard.databinding.ProgressBarBinding;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -46,6 +61,58 @@ import androidx.navigation.Navigation;
 public class CU {
 
     private static final String TAG = "CU";
+    private static Snackbar snackbar;
+    private static Toast globeToast;
+    private static FirebaseFirestore db;
+    private static Dialog progressDialog;
+    private static LocationRequest locationRequest;
+
+    public static FirebaseFirestore getFirestore() {
+        try {
+            if (db == null) {
+                db = FirebaseFirestore.getInstance();
+            }
+        } catch (Exception ex) {
+            db = FirebaseFirestore.getInstance();
+        }
+        return db;
+    }
+
+    public static void setActionBar(Context mContext, int type) {
+        setActionBar(mContext, type, "");
+    }
+
+    public static void setActionBar(Context mContext, int type, String title) {
+        switch (type) {
+            case CS.Page.ABOUT:
+                ((MainActivity) mContext).binding.tvTitle.setText("About us");
+                break;
+            case CS.Page.ANALYSIS:
+                ((MainActivity) mContext).binding.tvTitle.setText("Analysis");
+                break;
+            case CS.Page.HISTORY:
+                ((MainActivity) mContext).binding.tvTitle.setText("Patient History");
+                break;
+            case CS.Page.HOME:
+                ((MainActivity) mContext).binding.tvTitle.setText("Home");
+                break;
+            case CS.Page.HOME_REMEDIES:
+                ((MainActivity) mContext).binding.tvTitle.setText("Home Remedies");
+                break;
+            case CS.Page.PATIENT:
+                ((MainActivity) mContext).binding.tvTitle.setText("Patient");
+                break;
+            case CS.Page.REPORTS:
+                ((MainActivity) mContext).binding.tvTitle.setText("Reports");
+                break;
+            case CS.Page.SETTINGS:
+                ((MainActivity) mContext).binding.tvTitle.setText("Settings");
+                break;
+            case CS.Page.VERIFY:
+                ((MainActivity) mContext).binding.tvTitle.setText("Verify");
+                break;
+        }
+    }
 
     public static void displaySelectedFragment(Fragment fragment, FragmentManager fragmentManager, int id) {
         if (fragment == null) {
@@ -321,7 +388,7 @@ public class CU {
             }
             Log.e(TAG, "isNullOrEmpty: TextView true" + str);
         } else {
-            if (!"".equals(obj.toString())) {
+            if (obj != null && !"".equals(obj.toString())) {
                 Log.e(TAG, "isNullOrEmpty: false");
                 return false;
             }
@@ -469,4 +536,191 @@ public class CU {
         navController.navigate(id, bundle);
     }
 
+    public static Toast toast(Context mContext, String msg, int duration) {
+        try {
+            if (globeToast != null) {
+                globeToast.cancel();
+            }
+            Toast toast = Toast.makeText(mContext, msg, duration);
+            View view = toast.getView();
+            view.getBackground().setColorFilter(mContext.getColor(R.color.colorPrimary), PorterDuff.Mode.SRC_IN);
+            TextView text = view.findViewById(android.R.id.message);
+            text.setTextColor(mContext.getColor(R.color.white));
+            globeToast = toast;
+            return globeToast;
+        } catch (Exception ex) {
+            return Toast.makeText(mContext, msg, duration);
+        }
+    }
+
+    public static void snackBar(Context mContext, String msg, int duration) {
+        snackBar(((Activity) mContext).findViewById(android.R.id.content), msg, duration, "", null);
+    }
+
+    public static Snackbar snackBar(View rootView, String msg, int duration) {
+        return snackBar(rootView, msg, duration, "", null);
+    }
+
+    public static Snackbar snackBar(Context mContext, String msg, int duration, String action, View.OnClickListener onClickListener) {
+        return snackBar(((Activity) mContext).findViewById(android.R.id.content), msg, duration, action, onClickListener);
+    }
+
+    public static Snackbar snackBar(View rootView, String msg, int duration, String action, View.OnClickListener onClickListener) {
+        try {
+            if (snackbar != null && snackbar.isShown()) {
+                snackbar.dismiss();
+            }
+            snackbar = Snackbar
+                    .make(rootView, msg, duration);
+            if (!isNullOrEmpty(action)) {
+                snackbar.setAction(action, onClickListener);
+            }
+            View snackbarView = snackbar.getView();
+            TextView textView = (TextView) snackbarView.findViewById(com.google.android.material.R.id.snackbar_text);
+            textView.setMaxLines(5);  //Or as much as you need
+            snackbar.show();
+            return snackbar;
+        } catch (Exception ignored) {
+
+        }
+        return null;
+    }
+
+    public static void hideSnackBar() {
+        if (snackbar != null && snackbar.isShown()) {
+            snackbar.dismiss();
+        }
+    }
+
+    public static void showProgressbar(Context mContext) {
+        showProgressbar(mContext, false);
+    }
+
+    public static void showProgressbar(Context mContext, boolean isCancelable) {
+        if (mContext == null)
+            return;
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+        progressDialog = new Dialog(mContext);
+        ProgressBarBinding binding = ProgressBarBinding.inflate(((Activity) mContext).getLayoutInflater());
+        progressDialog.setContentView(binding.getRoot());
+        Window window = progressDialog.getWindow();
+        if (window != null) {
+            window.getAttributes().windowAnimations = R.style.ZoomingDialogAnimation;
+            window.setBackgroundDrawable(ContextCompat.getDrawable(mContext, R.color.transparent));
+            window.setLayout(mContext.getResources().getDimensionPixelSize(R.dimen._120sdp), mContext.getResources().getDimensionPixelSize(R.dimen._120sdp));
+            window.setGravity(Gravity.CENTER);
+        }
+        progressDialog.setCancelable(isCancelable);
+        Glide.with(mContext)
+                .asGif()
+                .circleCrop()
+                .load(R.drawable.health)
+                .into(binding.ivLoader);
+        try {
+            progressDialog.show();
+        } catch (Exception ignored) {
+        }
+    }
+
+    public static void hideProgressbar() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            try {
+                progressDialog.dismiss();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public static long getMidnightTime(long millis) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(millis);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTimeInMillis();
+    }
+
+    public static long getTime() {
+        return System.currentTimeMillis();
+    }
+
+    public static boolean requestPermissions(final Context mContext, final String[] permissions, final int requestCode, boolean compulsory) {
+        if (mContext == null || permissions.length == 0) {
+            return false;
+        }
+        boolean requested = false;
+        for (String per : permissions) {
+            if (ContextCompat.checkSelfPermission(mContext, per)
+                    != PackageManager.PERMISSION_GRANTED) {
+                String msg;
+                if (requestCode == CS.PermissionRequestCode.STORAGE) {
+                    msg = "•  Permission needed to save report";
+                } else if (requestCode == CS.PermissionRequestCode.LOCATION_NEW_USER ||
+                        requestCode == CS.PermissionRequestCode.LOCATION_NEW_RECORD ||
+                        requestCode == CS.PermissionRequestCode.LOCATION_NEW_REPORT) {
+                    compulsory = true;
+                    msg = "• Permission needed to fetch location";
+                } else {
+                    msg = "• Permission needed";
+                }
+                // Permission is not granted
+                if (ActivityCompat.shouldShowRequestPermissionRationale((Activity) mContext, per)) {
+
+                    MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(mContext);
+                    builder.setMessage(msg
+                            + "\nWant to give permissions?");
+                    builder.setTitle("Needs of permissions");
+
+                    builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ActivityCompat.requestPermissions((Activity) mContext,
+                                    permissions,
+                                    requestCode);
+                        }
+                    });
+                    AlertDialog alertDialog = builder.show();
+                    alertDialog.setCancelable(!compulsory);
+                } else {
+                    SharedPreferences sp = mContext.getSharedPreferences("GC", Context.MODE_PRIVATE);
+                    int permissionResult = sp.getInt(per, CS.PermissionGrantResult.GRANTED);
+                    if (permissionResult == CS.PermissionGrantResult.DONTASKAGAIN) {
+                        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(mContext);
+                        builder.setTitle("Cannot proceed further without permission");
+                        builder.setMessage(msg);
+
+                        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                mContext.startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + BuildConfig.APPLICATION_ID)));
+                            }
+                        });
+                        AlertDialog alertDialog = builder.show();
+                        alertDialog.setCancelable(!compulsory);
+                    } else {
+                        ActivityCompat.requestPermissions((Activity) mContext,
+                                permissions,
+                                requestCode);
+                    }
+                }
+                requested = true;
+            }
+        }
+        return requested;
+    }
+
+    public static boolean requestPermissions(final Context mContext, final String[] permissions, final int requestCode) {
+        return requestPermissions(mContext, permissions, requestCode, false);
+    }
+
+    public static LocationRequest getLocationRequest() {
+        locationRequest = LocationRequest.create();
+        locationRequest.setInterval(5000);
+        locationRequest.setFastestInterval(2000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        return locationRequest;
+    }
 }

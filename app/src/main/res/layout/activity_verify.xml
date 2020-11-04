@@ -146,7 +146,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="left"
                     android:minWidth="@dimen/_80sdp"
-                    android:text="email:"
+                    android:text="Email:"
                     android:textColor="@color/black"
                     android:textSize="@dimen/_12sdp"
                     android:textStyle="bold" />
@@ -214,7 +214,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="left"
                     android:minWidth="@dimen/_80sdp"
-                    android:text="gender:"
+                    android:text="Gender:"
                     android:textColor="@color/black"
                     android:textSize="@dimen/_12sdp"
                     android:textStyle="bold" />

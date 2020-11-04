@@ -1,8 +1,5 @@
 package com.shrewd.healthcard.Activity;
 
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
@@ -14,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
@@ -23,7 +19,6 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.shrewd.healthcard.ModelClass.Laboratory;
 import com.shrewd.healthcard.ModelClass.Report;
 import com.shrewd.healthcard.R;
@@ -31,6 +26,9 @@ import com.shrewd.healthcard.Utilities.CS;
 import com.shrewd.healthcard.Utilities.CU;
 
 import java.text.SimpleDateFormat;
+
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
 
 public class ReportHistoryActivity extends AppCompatActivity {
 
@@ -46,15 +44,8 @@ public class ReportHistoryActivity extends AppCompatActivity {
         SharedPreferences sp = getSharedPreferences("GC", MODE_PRIVATE);
         long userType = sp.getLong(CS.type, -1);
 
-        //region set Actionbar
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
-            actionBar.setTitle("History");
-        }
-
         TextView tvDate = findViewById(R.id.tvDate);
-        TextView tvReport = findViewById(R.id.tvReport);
+        TextView tvLab = findViewById(R.id.tvLab);
         TextView tvReportType = findViewById(R.id.tvReportType);
         TextView tvPatient = findViewById(R.id.tvPatient);
         final ImageView ivReport = findViewById(R.id.ivReport);
@@ -74,52 +65,27 @@ public class ReportHistoryActivity extends AppCompatActivity {
         }
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
+        //region set Actionbar
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setTitle("Report");
+        }
+        tvPatient.setText(report.getPatient_name());
 
-
-        db.collection(CS.Patient)
-                .whereEqualTo(CS.patientid, report.getPatientid())
+        db.collection(CS.Laboratory)
+                .document(report.getLab_id())
                 .get()
-                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
-                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                        for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-                            db.collection(CS.User)
-                                    .document(dsPatient.getString(CS.userid))
-                                    .get()
-                                    .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                        @Override
-                                        public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                            if (documentSnapshot.exists()) {
-                                                tvPatient.setText(documentSnapshot.getString(CS.name));
-                                            }
-                                        }
-                                    });
-                            break;
+                    public void onSuccess(DocumentSnapshot dsLab) {
+                        Laboratory laboratory = dsLab.toObject(Laboratory.class);
+                        if (laboratory != null) {
+                            String labDetail = laboratory.getName() + ",\n" + laboratory.getAddress() + "\n" + laboratory.getContact_no();
+                            tvLab.setText(labDetail);
                         }
                     }
                 });
-
-        if (userType == CS.ADMIN) {
-            tvReport.setVisibility(View.VISIBLE);
-            db.collection(CS.Laboratory)
-                    .whereEqualTo(CS.labid, report.getLabid())
-                    .get()
-                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                        @Override
-                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                            for (DocumentSnapshot dsLab : queryDocumentSnapshots.getDocuments()) {
-                                Laboratory laboratory = dsLab.toObject(Laboratory.class);
-                                String report = null;
-                                if (laboratory != null) {
-                                    report = laboratory.getName() + ",\n" + laboratory.getAddress() + "\n" + laboratory.getContactno();
-                                    tvReport.setText(report);
-                                }
-                            }
-                        }
-                    });
-        } else {
-            tvReport.setVisibility(View.GONE);
-        }
 
         if (report.getImage().size() > 0) {
             Glide.with(mContext)

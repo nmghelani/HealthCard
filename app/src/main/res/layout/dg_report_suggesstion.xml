@@ -20,10 +20,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="Suggested Report" />
+        android:text="Report suggestion" />
 
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnAddReport"
+        android:id="@+id/btnOk"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"

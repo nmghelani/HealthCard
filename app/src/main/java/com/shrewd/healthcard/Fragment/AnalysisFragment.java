@@ -3,12 +3,17 @@ package com.shrewd.healthcard.Fragment;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.LineChart;
@@ -18,8 +23,25 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.data.PieData;
 import com.github.mikephil.charting.data.PieDataSet;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.maps.android.heatmaps.Gradient;
+import com.google.maps.android.heatmaps.HeatmapTileProvider;
 import com.shrewd.healthcard.Adapter.AnalysisAdapter;
+import com.shrewd.healthcard.ModelClass.History;
 import com.shrewd.healthcard.R;
+import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.Utilities.CU;
 import com.shrewd.healthcard.databinding.FragmentAnalysisBinding;
 
 import java.io.BufferedReader;
@@ -32,6 +54,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -43,21 +66,12 @@ public class AnalysisFragment extends Fragment {
 
 
     private static final String TAG = "AnalysisFragment";
+    public static final int FILTER = 101;
     private Context mContext;
     private int clientTextColor;
     private String clientMessage;
-    private ClientThread clientThread;
+    private GoogleMap mMap;
     private String message;
-    private Thread thread;
-    private PieChart pcPatient;
-    private ArrayList pcPatientpieEntries;
-    private PieDataSet pcPatientpieDataSet;
-    private PieData pcPatientpieData;
-    private LineChart lcPatient;
-    private LineDataSet lcPatientlineDataSet;
-    private LineData lcPatientlineData;
-    private ArrayList lcPatientlineEntries;
-    private BarChart bcPatient;
     private FragmentAnalysisBinding binding;
 
     public AnalysisFragment() {
@@ -71,11 +85,81 @@ public class AnalysisFragment extends Fragment {
         // Inflate the layout for this fragment
         binding = FragmentAnalysisBinding.inflate(getLayoutInflater(), container, false);
         mContext = getContext();
+
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.ANALYSIS);
+        setHasOptionsMenu(true);
+
         clientTextColor = mContext.getColor(R.color.colorAccent);
 //        pcPatient = view.findViewById(R.id.pcPatient);
 //        pcPatient.setCenterText("Disease");
 //        pcPatient.setCenterTextSize(getResources().getDimension(R.dimen._7sdp));
 //        pcPatient.getDescription().setEnabled(false);
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
+        if (mapFragment == null) {
+            CU.toast(mContext, "Failed to load map\n Please try again later", Toast.LENGTH_LONG).show();
+            return binding.getRoot();
+        }
+        mapFragment.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(GoogleMap googleMap) {
+                mMap = googleMap;
+                if (mMap == null) {
+                    CU.toast(mContext, "Failed to load map\n Please try again later", Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                LatLng latLngIND = new LatLng(20.593683, 78.962883); //India's center LatLng
+                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLngIND, 5);
+                mMap.moveCamera(cameraUpdate);
+
+                CU.getFirestore()
+                        .collection(CS.History)
+                        .get()
+                        .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                            @Override
+                            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                                QuerySnapshot querySnapshot;
+                                if (task.isSuccessful() && (querySnapshot = task.getResult()) != null) {
+                                    // Create the gradient.
+                                    int[] colors = {
+                                            Color.rgb(255, 193, 30), // orange
+                                            Color.rgb(255, 173, 30), // orange
+                                            Color.rgb(255, 140, 30), // orange
+                                            Color.rgb(255, 112, 30), // orange
+                                            Color.rgb(255, 0, 0)    // red
+                                    };
+
+                                    float[] startPoints = {
+                                            0.2f, 0.4f, 0.6f, 0.7f, 1f
+                                    };
+
+                                    Gradient gradient = new Gradient(colors, startPoints);
+
+                                    List<LatLng> latLngs = new ArrayList<>();
+
+                                    for (DocumentSnapshot docHistory : querySnapshot.getDocuments()) {
+                                        History history = docHistory.toObject(History.class);
+                                        if (history != null && history.getLocation() != null) {
+                                            latLngs.add(history.getLocation());
+                                        }
+                                    }
+
+                                    if (!latLngs.isEmpty()) {
+                                        HeatmapTileProvider provider = new HeatmapTileProvider.Builder()
+                                                .data(latLngs)
+                                                .gradient(gradient)
+                                                .build();
+                                        TileOverlay overlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(provider));
+                                    }
+                                }
+                            }
+                        });
+
+            }
+        });
 
         AnalysisAdapter analysisFragment = new AnalysisAdapter(mContext);
         binding.rvAnalysis.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
@@ -189,9 +273,9 @@ public class AnalysisFragment extends Fragment {
                         "29 18.23 43 2.25";*/
                 clientMessage = type + "";
                 showMessage(clientMessage, Color.BLUE, false);
-                if (null != clientThread) {
+                if (null != this) {
                     if (clientMessage.length() > 0) {
-                        clientThread.sendMessage(clientMessage);
+                        this.sendMessage(clientMessage);
                     }
 //            edMessage.setText("");
                 } else {
@@ -330,4 +414,9 @@ public class AnalysisFragment extends Fragment {
 
     }
 
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        menu.add(0, FILTER, Menu.FIRST, "Filter").setIcon(R.drawable.filter).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+        super.onCreateOptionsMenu(menu, inflater);
+    }
 }

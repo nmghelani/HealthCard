@@ -1,23 +1,12 @@
 package com.shrewd.healthcard.Activity;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.core.view.GravityCompat;
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -28,9 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.MimeTypeMap;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.ybq.android.spinkit.SpinKitView;
@@ -49,10 +36,7 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
-import com.shrewd.healthcard.Adapter.HistoryAdapter;
 import com.shrewd.healthcard.Adapter.ReportAdapter;
-import com.shrewd.healthcard.Fragment.PatientFragment;
-import com.shrewd.healthcard.ModelClass.History;
 import com.shrewd.healthcard.ModelClass.Report;
 import com.shrewd.healthcard.ModelClass.User;
 import com.shrewd.healthcard.R;
@@ -64,6 +48,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 public class ReportActivity extends AppCompatActivity {
 
     private static final String TAG = "ReportActivity";
@@ -72,7 +66,6 @@ public class ReportActivity extends AppCompatActivity {
     private RecyclerView rvReport;
     private LinearLayout llNoData;
     private Context mContext;
-    private FrameLayout flProgressbar;
     private CoordinatorLayout crdPatient;
     private ArrayList<Report> alReport = new ArrayList<>();
     private FloatingActionButton fabAdd;
@@ -86,21 +79,22 @@ public class ReportActivity extends AppCompatActivity {
         setContentView(R.layout.activity_report);
         mContext = ReportActivity.this;
 
-        flProgressbar = (FrameLayout) findViewById(R.id.flProgressbar);
         crdPatient = (CoordinatorLayout) findViewById(R.id.crdPatient);
         fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
         rvReport = (RecyclerView) findViewById(R.id.rvReport);
         llNoData = (LinearLayout) findViewById(R.id.llNoData);
 
         Intent intent = getIntent();
-        String id = intent.getStringExtra(CS.userid);
-        int type = intent.getIntExtra(CS.type, CS.LAB);
+        String patient_id = intent.getStringExtra(CS.user_id);
+        long type = intent.getLongExtra(CS.type, CS.LAB);
 
-        if (type == CS.DOCTOR) {
+        if (type == CS.LAB) {
+            fabAdd.setVisibility(View.VISIBLE);
+        } else {
             fabAdd.setVisibility(View.GONE);
         }
 
-        if (id == null)
+        if (patient_id == null)
             return;
 
         //region set Actionbar
@@ -118,27 +112,31 @@ public class ReportActivity extends AppCompatActivity {
         }
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        Log.e(TAG, "onCreate: " + id);
+        Log.e(TAG, "onCreate: " + patient_id);
         db.collection(CS.User)
-                .document(id)
+                .document(patient_id)
                 .get()
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
                     public void onSuccess(DocumentSnapshot documentSnapshot) {
                         if (documentSnapshot.exists()) {
                             user = documentSnapshot.toObject(User.class);
+                            if (user == null) {
+                                return;
+                            }
+                            user.setUser_id(documentSnapshot.getId());
                             Log.e(TAG, "onSuccess: " + documentSnapshot.getString(CS.name));
                             ActionBar actionBar = getSupportActionBar();
                             if (actionBar != null) {
                                 actionBar.setDisplayHomeAsUpEnabled(true);
-                                actionBar.setTitle(user.getName());
+                                actionBar.setTitle("Reports - " + user.getName());
                             }
                         }
                     }
                 });
 
         /*db.collection(CS.Patient)
-                .whereEqualTo(CS.userid, id)
+                .whereEqualTo(CS.userid, patient_id)
                 .get()
                 .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                     @Override
@@ -162,7 +160,7 @@ public class ReportActivity extends AppCompatActivity {
                                                     Log.e(TAG, "onSuccess: error: " + ex.getMessage());
                                                 }
                                             }
-                                            setProgressCompleted();
+                                            CU.hideProgressbar();
                                             setAdapter(alReport);
 
                                         }
@@ -170,7 +168,7 @@ public class ReportActivity extends AppCompatActivity {
                                     .addOnFailureListener(new OnFailureListener() {
                                         @Override
                                         public void onFailure(@NonNull Exception e) {
-                                            setProgressCompleted();
+                                            CU.hideProgressbar();
                                             setAdapter(alReport);
                                             Log.e(TAG, "onFailure: " + e.getMessage());
                                         }
@@ -179,51 +177,52 @@ public class ReportActivity extends AppCompatActivity {
                     }
                 });*/
 
-        db.collection(CS.Patient)
-                .whereEqualTo(CS.userid, id)
+        db.collection(CS.Report)
+                .orderBy(CS.date, Query.Direction.DESCENDING)
+                .whereEqualTo(CS.patient_id, patient_id)
+//                                    .whereEqualTo(CS.doctorid, firebaseUser.getUid())
                 .get()
                 .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                     @Override
                     public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                        for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-                            db.collection(CS.Report)
-                                    .orderBy(CS.date, Query.Direction.DESCENDING)
-                                    .whereEqualTo(CS.patientid, dsPatient.getString(CS.patientid))
-//                                    .whereEqualTo(CS.doctorid, firebaseUser.getUid())
-                                    .get()
-                                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                        @Override
-                                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                            Log.e(TAG, "onSuccess: " + queryDocumentSnapshots.size());
-                                            alReport.clear();
-                                            for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
-                                                try {
-                                                    Report report = documentSnapshot.toObject(Report.class);
-                                                    alReport.add(report);
-                                                } catch (Exception ex) {
-                                                    Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                                                }
-                                            }
-                                            setProgressCompleted();
-                                            setAdapter(alReport);
-
-                                        }
-                                    })
-                                    .addOnFailureListener(new OnFailureListener() {
-                                        @Override
-                                        public void onFailure(@NonNull Exception e) {
-                                            setProgressCompleted();
-                                            setAdapter(alReport);
-                                            Log.e(TAG, "onFailure: " + e.getMessage());
-                                        }
-                                    });
+                        Log.e(TAG, "onSuccess: " + queryDocumentSnapshots.size());
+                        alReport.clear();
+                        for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
+                            try {
+                                Report report = documentSnapshot.toObject(Report.class);
+                                alReport.add(report);
+                            } catch (Exception ex) {
+                                Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                            }
                         }
+                        CU.hideProgressbar();
+                        setAdapter(alReport);
+
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        CU.hideProgressbar();
+                        setAdapter(alReport);
+                        Log.e(TAG, "onFailure: " + e.getMessage());
                     }
                 });
 
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
+                SharedPreferences sp = getSharedPreferences("GC", MODE_PRIVATE);
+                String lab_id = sp.getString(CS.lab_id, "");
+                String lab_name = sp.getString(CS.lab_name, "");
+                if (CU.isNullOrEmpty(lab_id) || CU.isNullOrEmpty(lab_name)) {
+                    startActivity(new Intent(mContext, LoginActivity.class));
+                    finishAffinity();
+                    CU.toast(mContext, "Some error occurred!\nTry log-in again", Toast.LENGTH_LONG).show();
+                    return;
+                }
+
                 Dialog dg = new Dialog(mContext);
                 dg.setContentView(R.layout.dg_new_report);
                 TextInputEditText etReportType = dg.findViewById(R.id.etReportType);
@@ -271,84 +270,69 @@ public class ReportActivity extends AppCompatActivity {
                         progressBar.setVisibility(View.VISIBLE);
                         btnSubmit.setVisibility(View.GONE);
 
-                        db.collection(CS.LabAssistant)
-                                .whereEqualTo(CS.userid, firebaseUser.getUid())
+                        db.collection(CS.User)
+                                .document(patient_id)
                                 .get()
-                                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                                     @Override
-                                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                        for (DocumentSnapshot dsLabassistant : queryDocumentSnapshots.getDocuments()) {
-
-                                            db.collection(CS.Patient)
-                                                    .whereEqualTo(CS.userid, id)
-                                                    .get()
-                                                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                                        @Override
-                                                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                            for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-
-                                                                final StorageReference sRef = FirebaseStorage.getInstance().getReference("Users/" + System.currentTimeMillis() + "." + MimeTypeMap.getFileExtensionFromUrl(filePathUri.toString()));
-                                                                sRef.putFile(filePathUri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                    public void onSuccess(DocumentSnapshot dsUser) {
+                                        User userPatient = dsUser.toObject(User.class);
+                                        if (userPatient == null) {
+                                            return;
+                                        }
+                                        final StorageReference sRef = FirebaseStorage.getInstance().getReference("Users/" + System.currentTimeMillis() + "." + MimeTypeMap.getFileExtensionFromUrl(filePathUri.toString()));
+                                        sRef.putFile(filePathUri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                            @Override
+                                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                                sRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                                    @Override
+                                                    public void onSuccess(Uri uri) {
+                                                        Report report = new Report(
+                                                                String.valueOf(System.currentTimeMillis()), //Report id
+                                                                lab_id,
+                                                                lab_name,
+                                                                etReportType.getText().toString().trim(),
+                                                                new ArrayList<>(Arrays.asList(uri.toString())),
+                                                                new Date(System.currentTimeMillis()),
+                                                                patient_id,
+                                                                userPatient.getName() // Patient name
+                                                        );
+                                                        db.collection(CS.Report)
+                                                                .document(report.getReport_id())
+                                                                .set(report)
+                                                                .addOnSuccessListener(new OnSuccessListener<Void>() {
                                                                     @Override
-                                                                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                                                                        sRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                                                            @Override
-                                                                            public void onSuccess(Uri uri) {
-                                                                                Report report = new Report(String.valueOf(System.currentTimeMillis()), dsLabassistant.getString(CS.labid),
-                                                                                        etReportType.getText().toString().trim(), new ArrayList<>(Arrays.asList(uri.toString())),
-                                                                                        new Date(System.currentTimeMillis()), dsPatient.getString(CS.patientid));
-                                                                                db.collection(CS.Report)
-                                                                                        .document(report.getReportid())
-                                                                                        .set(report)
-                                                                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                                                                            @Override
-                                                                                            public void onSuccess(Void aVoid) {
-                                                                                                Toast.makeText(ReportActivity.this, "Report added succesfully!", Toast.LENGTH_LONG).show();
-                                                                                                dg.dismiss();
-                                                                                            }
-                                                                                        })
-                                                                                        .addOnFailureListener(new OnFailureListener() {
-                                                                                            @Override
-                                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                                dg.dismiss();
-                                                                                            }
-                                                                                        });
-                                                                                progressBar.setVisibility(View.GONE);
-                                                                                btnSubmit.setVisibility(View.VISIBLE);
-                                                                            }
-                                                                        }).addOnFailureListener(new OnFailureListener() {
-                                                                            @Override
-                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                dg.dismiss();
-                                                                                progressBar.setVisibility(View.GONE);
-                                                                                btnSubmit.setVisibility(View.VISIBLE);
-                                                                            }
-                                                                        });
+                                                                    public void onSuccess(Void aVoid) {
+                                                                        Toast.makeText(ReportActivity.this, "Report added succesfully!", Toast.LENGTH_LONG).show();
+                                                                        dg.dismiss();
                                                                     }
-                                                                }).addOnFailureListener(new OnFailureListener() {
+                                                                })
+                                                                .addOnFailureListener(new OnFailureListener() {
                                                                     @Override
                                                                     public void onFailure(@NonNull Exception e) {
-                                                                        progressBar.setVisibility(View.GONE);
-                                                                        btnSubmit.setVisibility(View.VISIBLE);
                                                                         dg.dismiss();
                                                                     }
                                                                 });
-
-                                                                break;
-                                                            }
-                                                        }
-                                                    })
-                                                    .addOnFailureListener(new OnFailureListener() {
-                                                        @Override
-                                                        public void onFailure(@NonNull Exception e) {
-                                                            progressBar.setVisibility(View.GONE);
-                                                            btnSubmit.setVisibility(View.VISIBLE);
-                                                            dg.dismiss();
-                                                        }
-                                                    });
-
-                                            break;
-                                        }
+                                                        progressBar.setVisibility(View.GONE);
+                                                        btnSubmit.setVisibility(View.VISIBLE);
+                                                    }
+                                                }).addOnFailureListener(new OnFailureListener() {
+                                                    @Override
+                                                    public void onFailure(@NonNull Exception e) {
+                                                        dg.dismiss();
+                                                        progressBar.setVisibility(View.GONE);
+                                                        btnSubmit.setVisibility(View.VISIBLE);
+                                                    }
+                                                });
+                                            }
+                                        }).addOnFailureListener(new OnFailureListener() {
+                                            @Override
+                                            public void onFailure(@NonNull Exception e) {
+                                                progressBar.setVisibility(View.GONE);
+                                                btnSubmit.setVisibility(View.VISIBLE);
+                                                dg.dismiss();
+                                            }
+                                        });
                                     }
                                 });
 
@@ -356,45 +340,35 @@ public class ReportActivity extends AppCompatActivity {
                             @Override
                             public void onDismiss(DialogInterface dialog) {
 
-                                db.collection(CS.Patient)
-                                        .whereEqualTo(CS.userid, id)
+                                db.collection(CS.Report)
+                                        .orderBy(CS.date, Query.Direction.DESCENDING)
+                                        .whereEqualTo(CS.patient_id, patient_id)
+//                                    .whereEqualTo(CS.doctorid, firebaseUser.getUid())
                                         .get()
                                         .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                                             @Override
                                             public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-                                                    db.collection(CS.Report)
-                                                            .orderBy(CS.date, Query.Direction.DESCENDING)
-                                                            .whereEqualTo(CS.patientid, dsPatient.getString(CS.patientid))
-//                                    .whereEqualTo(CS.doctorid, firebaseUser.getUid())
-                                                            .get()
-                                                            .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                                                @Override
-                                                                public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                                    Log.e(TAG, "onSuccess: " + queryDocumentSnapshots.size());
-                                                                    alReport.clear();
-                                                                    for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
-                                                                        try {
-                                                                            Report report = documentSnapshot.toObject(Report.class);
-                                                                            alReport.add(report);
-                                                                        } catch (Exception ex) {
-                                                                            Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                                                                        }
-                                                                    }
-                                                                    setProgressCompleted();
-                                                                    setAdapter(alReport);
-
-                                                                }
-                                                            })
-                                                            .addOnFailureListener(new OnFailureListener() {
-                                                                @Override
-                                                                public void onFailure(@NonNull Exception e) {
-                                                                    setProgressCompleted();
-                                                                    setAdapter(alReport);
-                                                                    Log.e(TAG, "onFailure: " + e.getMessage());
-                                                                }
-                                                            });
+                                                Log.e(TAG, "onSuccess: " + queryDocumentSnapshots.size());
+                                                alReport.clear();
+                                                for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
+                                                    try {
+                                                        Report report = documentSnapshot.toObject(Report.class);
+                                                        alReport.add(report);
+                                                    } catch (Exception ex) {
+                                                        Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                                    }
                                                 }
+                                                CU.hideProgressbar();
+                                                setAdapter(alReport);
+
+                                            }
+                                        })
+                                        .addOnFailureListener(new OnFailureListener() {
+                                            @Override
+                                            public void onFailure(@NonNull Exception e) {
+                                                CU.hideProgressbar();
+                                                setAdapter(alReport);
+                                                Log.e(TAG, "onFailure: " + e.getMessage());
                                             }
                                         });
                             }
@@ -405,17 +379,7 @@ public class ReportActivity extends AppCompatActivity {
                 dg.show();
             }
         });
-        setInProgress();
-    }
-
-    public void setInProgress() {
-        crdPatient.setActivated(false);
-        CU.showProgressBar(flProgressbar);
-    }
-
-    public void setProgressCompleted() {
-        crdPatient.setActivated(true);
-        CU.hideProgressBar(flProgressbar);
+        CU.showProgressbar(mContext);
     }
 
     private void setAdapter(ArrayList<Report> alReport) {

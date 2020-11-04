@@ -242,6 +242,7 @@ public class SignUpActivity extends AppCompatActivity {
                 .requestEmail()
                 .build();
         mGoogleSignInClient = GoogleSignIn.getClient(mContext, gso);
+        mGoogleSignInClient.signOut();
     }
 
     private void firebaseAuthWithGoogle(GoogleSignInAccount acct) {

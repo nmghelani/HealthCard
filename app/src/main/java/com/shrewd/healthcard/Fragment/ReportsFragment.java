@@ -12,8 +12,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -30,6 +28,7 @@ import com.shrewd.healthcard.Adapter.ReportAdapter;
 import com.shrewd.healthcard.ModelClass.Report;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.Utilities.CU;
 import com.shrewd.healthcard.databinding.FragmentReportsBinding;
 
 import java.util.ArrayList;
@@ -61,6 +60,11 @@ public class ReportsFragment extends Fragment {
         // Inflate the layout for this fragment
         binding = FragmentReportsBinding.inflate(getLayoutInflater(), container, false);
         mContext = getContext();
+
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.REPORTS);
+
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         if (firebaseUser == null) {
             Toast.makeText(mContext, "Some error occurred! Please login again", Toast.LENGTH_SHORT).show();
@@ -83,7 +87,8 @@ public class ReportsFragment extends Fragment {
             binding.flReportAdmin.setVisibility(View.VISIBLE);
             binding.flReport.setVisibility(View.GONE);
 
-            ((MainActivity) mContext).setInProgress();
+            CU.showProgressbar(mContext);
+
             db.collection(CS.Report)
                     .orderBy(CS.date, Query.Direction.DESCENDING)
                     .get()
@@ -98,8 +103,8 @@ public class ReportsFragment extends Fragment {
                                             documentSnapshot.getString(CS.reportid), documentSnapshot.getString(CS.area), documentSnapshot.getString(CS.disease),
                                             (ArrayList<String>) documentSnapshot.get(CS.medicine), (ArrayList<String>) documentSnapshot.get(CS.symptoms), (ArrayList<String>) documentSnapshot.get(CS.vigilance),
                                             documentSnapshot.getTimestamp(CS.date).toDate());*/
-                                    Log.e(TAG, "onSuccess: report: " + report.getLabid());
-                                    Log.e(TAG, "onSuccess: report: " + report.getReportid());
+                                    Log.e(TAG, "onSuccess: report: " + report.getLab_id());
+                                    Log.e(TAG, "onSuccess: report: " + report.getReport_id());
                                     Log.e(TAG, "onSuccess: report: " + report.getType());
                                     Log.e(TAG, "onSuccess: report: " + report.getDate());
                                     Log.e(TAG, "onSuccess: report: " + (report.getImage().size() > 0 ? report.getImage().get(0) : "no image"));
@@ -108,7 +113,7 @@ public class ReportsFragment extends Fragment {
                                     Log.e(TAG, "onSuccess: error: " + ex.getMessage());
                                 }
                             }
-                            ((MainActivity) mContext).setProgressCompleted();
+                            CU.hideProgressbar();
                             setAdapter(alReport, (int) type);
 
                         }
@@ -116,61 +121,56 @@ public class ReportsFragment extends Fragment {
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(@NonNull Exception e) {
-                            ((MainActivity) mContext).setProgressCompleted();
+                            CU.hideProgressbar();
                             setAdapter(alReport, (int) type);
                             Log.e(TAG, "onFailure: " + e.getMessage());
                         }
                     });
         } else if (type == CS.LAB) {
+
+            String labassistant_id = sp.getString(CS.labassistant_id, "");
+            String lab_id = sp.getString(CS.lab_id, "");
+            String lab_name = sp.getString(CS.lab_name, "");
+            if (CU.isNullOrEmpty(lab_id) || CU.isNullOrEmpty(lab_name)) {
+                CU.toast(mContext, "Failed to fetch reports!\nPlease try again later", Toast.LENGTH_LONG).show();
+                return;
+            }
+            
             binding.flReportAdmin.setVisibility(View.GONE);
             binding.flReport.setVisibility(View.VISIBLE);
             MainActivity.NFCReportEnabled = true;
 
-            ((MainActivity) mContext).setInProgress();
+            CU.showProgressbar(mContext);
 
             Log.e(TAG, "onCreateView: firebaseUser: " + firebaseUser.getUid());
-            db.collection(CS.LabAssistant)
-                    .whereEqualTo(CS.userid, firebaseUser.getUid())
+            db.collection(CS.Report)
+                    .orderBy(CS.date, Query.Direction.DESCENDING)
+                    .whereEqualTo(CS.lab_id, lab_id)
                     .get()
                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                         @Override
                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-
-                            for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                                Log.e(TAG, "onSuccess: " + doc.getString(CS.labid));
-                                db.collection(CS.Report)
-                                        .orderBy(CS.date, Query.Direction.DESCENDING)
-                                        .whereEqualTo(CS.labid, doc.getString(CS.labid))
-                                        .get()
-                                        .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                            @Override
-                                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                alReport.clear();
-                                                for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
-                                                    try {
-                                                        Report report = documentSnapshot.toObject(Report.class);
-                                                        Log.e(TAG, "onSuccess: " + report.getPatientid());
-                                                        alReport.add(report);
-                                                    } catch (Exception ex) {
-                                                        Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                                                    }
-                                                }
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alReport, (int) type);
-
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alReport, (int) type);
-                                                Log.e(TAG, "onFailure: " + e.getMessage());
-                                            }
-                                        });
-                                break;
+                            alReport.clear();
+                            for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
+                                try {
+                                    Report report = documentSnapshot.toObject(Report.class);
+                                    Log.e(TAG, "onSuccess: " + report.getPatient_id());
+                                    alReport.add(report);
+                                } catch (Exception ex) {
+                                    Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                }
                             }
+                            CU.hideProgressbar();
+                            setAdapter(alReport, (int) type);
 
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            CU.hideProgressbar();
+                            setAdapter(alReport, (int) type);
+                            Log.e(TAG, "onFailure: " + e.getMessage());
                         }
                     });
         } else if (type == CS.PATIENT) {
@@ -178,54 +178,43 @@ public class ReportsFragment extends Fragment {
             binding.flReport.setVisibility(View.VISIBLE);
             MainActivity.NFCReportEnabled = true;
 
-            ((MainActivity) mContext).setInProgress();
-            db.collection(CS.Patient)
-                    .whereEqualTo(CS.userid, firebaseUser.getUid())
+            CU.showProgressbar(mContext);
+
+            db.collection(CS.Report)
+                    .orderBy(CS.date, Query.Direction.DESCENDING)
+                    .whereEqualTo(CS.patient_id, firebaseUser.getUid())
                     .get()
                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                         @Override
                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                            for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-                                ((MainActivity) mContext).setInProgress();
-                                db.collection(CS.Report)
-                                        .orderBy(CS.date, Query.Direction.DESCENDING)
-                                        .whereEqualTo(CS.patientid, dsPatient.getString(CS.patientid))
-                                        .get()
-                                        .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                            @Override
-                                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                alReport.clear();
-                                                for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
-                                                    try {
-                                                        Report report = documentSnapshot.toObject(Report.class);
+                            alReport.clear();
+                            for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
+                                try {
+                                    Report report = documentSnapshot.toObject(Report.class);
                                     /*History history = new History(documentSnapshot.getString(CS.doctorid), documentSnapshot.getString(CS.patientid),
                                             documentSnapshot.getString(CS.reportid), documentSnapshot.getString(CS.area), documentSnapshot.getString(CS.disease),
                                             (ArrayList<String>) documentSnapshot.get(CS.medicine), (ArrayList<String>) documentSnapshot.get(CS.symptoms), (ArrayList<String>) documentSnapshot.get(CS.vigilance),
                                             documentSnapshot.getTimestamp(CS.date).toDate());*/
-                                                        Log.e(TAG, "onSuccess: report: " + report.getLabid());
-                                                        Log.e(TAG, "onSuccess: report: " + report.getReportid());
-                                                        Log.e(TAG, "onSuccess: report: " + report.getType());
-                                                        Log.e(TAG, "onSuccess: report: " + report.getDate());
-                                                        Log.e(TAG, "onSuccess: report: " + (report.getImage().size() > 0 ? report.getImage().get(0) : "no image"));
-                                                        alReport.add(report);
-                                                    } catch (Exception ex) {
-                                                        Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                                                    }
-                                                }
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alReport, (int) type);
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alReport, (int) type);
-                                                Log.e(TAG, "onFailure: " + e.getMessage());
-                                            }
-                                        });
-                                break;
+                                    Log.e(TAG, "onSuccess: report: " + report.getLab_id());
+                                    Log.e(TAG, "onSuccess: report: " + report.getReport_id());
+                                    Log.e(TAG, "onSuccess: report: " + report.getType());
+                                    Log.e(TAG, "onSuccess: report: " + report.getDate());
+                                    Log.e(TAG, "onSuccess: report: " + (report.getImage().size() > 0 ? report.getImage().get(0) : "no image"));
+                                    alReport.add(report);
+                                } catch (Exception ex) {
+                                    Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                }
                             }
+                            CU.hideProgressbar();
+                            setAdapter(alReport, (int) type);
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            CU.hideProgressbar();
+                            setAdapter(alReport, (int) type);
+                            Log.e(TAG, "onFailure: " + e.getMessage());
                         }
                     });
         } else if (type == CS.DOCTOR) {

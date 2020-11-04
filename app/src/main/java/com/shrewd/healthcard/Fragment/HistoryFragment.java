@@ -16,8 +16,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -31,8 +29,8 @@ import com.shrewd.healthcard.Activity.LoginActivity;
 import com.shrewd.healthcard.Activity.MainActivity;
 import com.shrewd.healthcard.Adapter.HistoryAdapter;
 import com.shrewd.healthcard.ModelClass.History;
-import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.Utilities.CU;
 import com.shrewd.healthcard.databinding.FragmentHistoryBinding;
 
 import java.util.ArrayList;
@@ -59,12 +57,18 @@ public class HistoryFragment extends Fragment {
         // Inflate the layout for this fragment
         binding = FragmentHistoryBinding.inflate(getLayoutInflater(), container, false);
         mContext = getContext();
+
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.HISTORY);
+
         SharedPreferences sp = mContext.getSharedPreferences("GC", MODE_PRIVATE);
         long type = sp.getLong(CS.type, 1);
         Log.e(TAG, "onCreateView: " + type);
 
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        ((MainActivity) mContext).setInProgress();
+        CU.showProgressbar(mContext);
+
 
         if (type == CS.ADMIN) {
             binding.flAdmin.setVisibility(View.VISIBLE);
@@ -89,14 +93,14 @@ public class HistoryFragment extends Fragment {
                                     Log.e(TAG, "onSuccess: error: " + ex.getMessage());
                                 }
                             }
-                            ((MainActivity) mContext).setProgressCompleted();
+                            CU.hideProgressbar();
                             setAdapter(alHistory, type);
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(@NonNull Exception e) {
-                            ((MainActivity) mContext).setProgressCompleted();
+                            CU.hideProgressbar();
                             setAdapter(alHistory, type);
                             Log.e(TAG, "onFailure: " + e.getMessage());
                         }
@@ -104,44 +108,33 @@ public class HistoryFragment extends Fragment {
         } else {
             binding.flAdmin.setVisibility(View.GONE);
             binding.flPatient.setVisibility(View.VISIBLE);
-            db.collection(CS.Patient)
-                    .whereEqualTo(CS.userid, firebaseUser.getUid())
+            db.collection(CS.History)
+                    .orderBy(CS.date, Query.Direction.DESCENDING)
+                    .whereEqualTo(CS.patient_id, firebaseUser.getUid())
                     .get()
                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                         @Override
                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                            for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-                                db.collection(CS.History)
-                                        .orderBy(CS.date, Query.Direction.DESCENDING)
-                                        .whereEqualTo(CS.patientid, dsPatient.getString(CS.patientid))
-                                        .get()
-                                        .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                            @Override
-                                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                alHistory.clear();
-                                                for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
-                                                    try {
-                                                        History history = documentSnapshot.toObject(History.class);
-                                                        alHistory.add(history);
-                                                    } catch (Exception ex) {
-                                                        Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                                                    }
-                                                }
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alHistory, type);
-
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alHistory, type);
-                                                Log.e(TAG, "onFailure: " + e.getMessage());
-                                            }
-                                        });
-                                break;
+                            alHistory.clear();
+                            for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
+                                try {
+                                    History history = documentSnapshot.toObject(History.class);
+                                    alHistory.add(history);
+                                } catch (Exception ex) {
+                                    Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                }
                             }
+                            CU.hideProgressbar();
+                            setAdapter(alHistory, type);
+
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            CU.hideProgressbar();
+                            setAdapter(alHistory, type);
+                            Log.e(TAG, "onFailure: " + e.getMessage());
                         }
                     });
 
@@ -157,7 +150,7 @@ public class HistoryFragment extends Fragment {
                     binding.rvHistoryAdmin.setVisibility(View.VISIBLE);
                     binding.llNoDataAdmin.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alHistory.size());
-                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.ADMIN);
+                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.Page.HISTORY);
                     binding.rvHistoryAdmin.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
                     binding.rvHistoryAdmin.setAdapter(historyAdapter);
                 } else {
@@ -170,7 +163,7 @@ public class HistoryFragment extends Fragment {
                     binding.rvHistory.setVisibility(View.VISIBLE);
                     binding.llNoData.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alHistory.size());
-                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.PATIENT);
+                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.Page.HISTORY);
                     binding.rvHistory.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
                     binding.rvHistory.setAdapter(historyAdapter);
                 } else {

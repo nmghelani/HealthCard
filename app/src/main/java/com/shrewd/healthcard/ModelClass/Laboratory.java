@@ -4,17 +4,17 @@ import androidx.annotation.NonNull;
 
 public class Laboratory {
 
-    private String address, labid, name;
-    private long contactno;
+    private String address, lab_id, name;
+    private long contact_no;
 
     public Laboratory() {
 
     }
 
-    public Laboratory(String address, long contactno, String labid, String name) {
+    public Laboratory(String address, long contact_no, String lab_id, String name) {
         this.address = address;
-        this.contactno = contactno;
-        this.labid = labid;
+        this.contact_no = contact_no;
+        this.lab_id = lab_id;
         this.name = name;
     }
 
@@ -22,12 +22,12 @@ public class Laboratory {
         return address;
     }
 
-    public long getContactno() {
-        return contactno;
+    public long getContact_no() {
+        return contact_no;
     }
 
-    public String getLabid() {
-        return labid;
+    public String getLab_id() {
+        return lab_id;
     }
 
     public String getName() {
@@ -37,10 +37,10 @@ public class Laboratory {
     @NonNull
     @Override
     public String toString() {
-        if (contactno == -1) {
+        if (contact_no == -1) {
             return "-- Select Laboratory --";
         } else {
-            return name + ", " + address + ", " + contactno;
+            return name + ", " + address + ", " + contact_no;
         }
     }
 }

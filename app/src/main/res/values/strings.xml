@@ -22,4 +22,5 @@
     <string name="about">Store all the health related day to day data centrally. Doctor can keep all the records of patient\'host health and patients can manage all the cases of his/her lifetime.By analysis of data retrieve the health trends of different cities and area which is useful for government to focus on new disease at the earliest stage</string>
     <string name="default_notification_channel_id">111</string>
     <string name="fcm_message">FCM Message</string>
+    <string name="google_maps_api_key">AIzaSyA2CugAiZxluwXnjsqgXtLNY-fgaVDe5y4</string>
 </resources>

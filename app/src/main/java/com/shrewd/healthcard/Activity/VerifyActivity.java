@@ -32,13 +32,11 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QuerySnapshot;
-import com.shrewd.healthcard.ModelClass.Doctor;
 import com.shrewd.healthcard.ModelClass.User;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.databinding.ActivityVerifyBinding;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -54,19 +52,19 @@ public class VerifyActivity extends AppCompatActivity {
     public NfcAdapter mNfcAdapter;
     public static boolean NFCEnabled = false;
     private ProgressDialog pd;
-    private PendingIntent mNfcPendingIntent;
-    private String reportName = "";
+    private ActivityVerifyBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_verify);
+        binding = ActivityVerifyBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
         mContext = VerifyActivity.this;
 
         initNFC();
         pd = new ProgressDialog(mContext);
         pd.setMessage("Waiting for NFC Tag...");
-        pd.setCancelable(false);
+        pd.setCanceledOnTouchOutside(false);
 
         //region set Actionbar
         ActionBar actionBar = getSupportActionBar();
@@ -116,39 +114,20 @@ public class VerifyActivity extends AppCompatActivity {
         llLicenseNo.setVisibility(user.getType() == CS.DOCTOR ? View.VISIBLE : View.GONE);
         vLicenseNo.setVisibility(user.getType() == CS.DOCTOR ? View.VISIBLE : View.GONE);
 
-        db.collection(CS.Doctor)
-                .whereEqualTo(CS.userid, user.getUserid())
-                .get()
-                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                    @Override
-                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                        for (DocumentSnapshot dsDoctor : queryDocumentSnapshots.getDocuments()) {
-                            Doctor doctor = dsDoctor.toObject(Doctor.class);
-                            if (doctor != null) {
-                                tvLicenseNo.setText(doctor.getLicenseno());
-                            }
-                        }
-                    }
-                });
+        tvLicenseNo.setText(user.getDoc_license_no());
 
         btnReject.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                user.setType(-1);
+                //set type to -1 to reject
                 db.collection(CS.User)
-                        .whereEqualTo(CS.name, user.getName())
-                        .whereEqualTo(CS.email, user.getEmail())
-                        .whereEqualTo(CS.dob, user.getDob())
-                        .get()
-                        .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                        .document(user.getUser_id())
+                        .update(CS.type, -1)
+                        .addOnSuccessListener(new OnSuccessListener<Void>() {
                             @Override
-                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                if (queryDocumentSnapshots.size() > 0) {
-                                    String id = queryDocumentSnapshots.getDocuments().get(0).getId();
-                                    queryDocumentSnapshots.getDocuments().get(0).getReference().getParent().document(id).set(user);
-                                    Toast.makeText(mContext, "Profile rejected", Toast.LENGTH_SHORT).show();
-                                    onBackPressed();
-                                }
+                            public void onSuccess(Void v) {
+                                Toast.makeText(mContext, "Profile rejected", Toast.LENGTH_SHORT).show();
+                                onBackPressed();
                             }
                         });
             }
@@ -158,24 +137,17 @@ public class VerifyActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (user.getType() != CS.PATIENT) {
-                    user.setVerified(true);
                     FirebaseFirestore db = FirebaseFirestore.getInstance();
                     db.collection(CS.User)
-                            .whereEqualTo(CS.name, user.getName())
-                            .whereEqualTo(CS.email, user.getEmail())
-                            .whereEqualTo(CS.dob, user.getDob())
-                            .get()
-                            .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                            .document(user.getUser_id())
+                            .update(CS.verified,true)
+                            .addOnSuccessListener(new OnSuccessListener<Void>() {
                                 @Override
-                                public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                    if (queryDocumentSnapshots.size() > 0) {
-                                        String id = queryDocumentSnapshots.getDocuments().get(0).getId();
-                                        queryDocumentSnapshots.getDocuments().get(0).getReference().getParent().document(id).set(user);
-                                        Toast.makeText(mContext, "Profile approved", Toast.LENGTH_SHORT).show();
-                                        onBackPressed();
-                                        pd.dismiss();
-                                        Log.e(TAG, "onSuccess: " + "Registered");
-                                    }
+                                public void onSuccess(Void v) {
+                                    Toast.makeText(mContext, "Profile approved", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(mContext, "Profile approved", Toast.LENGTH_SHORT).show();
+                                    onBackPressed();
+                                    pd.dismiss();
                                 }
                             })
                             .addOnFailureListener(new OnFailureListener() {
@@ -194,7 +166,7 @@ public class VerifyActivity extends AppCompatActivity {
 
         tvUsername.setText(user.getName());
         tvEmail.setText(user.getEmail());
-        tvContactNo.setText(String.valueOf(user.getContactno()));
+        tvContactNo.setText(String.valueOf(user.getContact_no()));
         switch ((int) user.getGender()) {
             case CS.Male:
                 tvGender.setText("Male");
@@ -226,7 +198,7 @@ public class VerifyActivity extends AppCompatActivity {
         }
         tvDOB.setText(new SimpleDateFormat("dd-MM-yyyy").format(user.getDob()) + "");
         tvArea.setText(user.getAddress());
-        tvTime.setText(user.getRegdate() + "");
+        tvTime.setText(user.getReg_date() + "");
 
         Glide.with(mContext).load(user.getProof()).into(ivVerify);
 
@@ -322,7 +294,7 @@ public class VerifyActivity extends AppCompatActivity {
         if (NFCEnabled) {
             Intent intent1 = getIntent();
             User user = intent1.getParcelableExtra(CS.User);
-            String userid = intent1.getStringExtra(CS.userid);
+            String userid = intent1.getStringExtra(CS.user_id);
             if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())
                     || NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction()) && user != null && user.getType() == CS.PATIENT) {
                 Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
@@ -333,24 +305,16 @@ public class VerifyActivity extends AppCompatActivity {
                         Toast.makeText(this, "NFC Tag Registered", Toast.LENGTH_SHORT)
                                 .show();
                         if (user != null) {
-                            user.setVerified(true);
                             FirebaseFirestore db = FirebaseFirestore.getInstance();
                             db.collection(CS.User)
-                                    .whereEqualTo(CS.name, user.getName())
-                                    .whereEqualTo(CS.email, user.getEmail())
-                                    .whereEqualTo(CS.dob, user.getDob())
-                                    .get()
-                                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                                    .document(user.getUser_id())
+                                    .update(CS.verified, true)
+                                    .addOnSuccessListener(new OnSuccessListener<Void>() {
                                         @Override
-                                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                            if (queryDocumentSnapshots.size() > 0) {
-                                                String id = queryDocumentSnapshots.getDocuments().get(0).getId();
-                                                queryDocumentSnapshots.getDocuments().get(0).getReference().getParent().document(id).set(user);
-                                                Toast.makeText(mContext, "Profile approved", Toast.LENGTH_SHORT).show();
-                                                onBackPressed();
-                                                pd.dismiss();
-                                                Log.e(TAG, "onSuccess: " + "Registered");
-                                            }
+                                        public void onSuccess(Void v) {
+                                            Toast.makeText(mContext, "Profile approved", Toast.LENGTH_SHORT).show();
+                                            onBackPressed();
+                                            pd.dismiss();
                                         }
                                     })
                                     .addOnFailureListener(new OnFailureListener() {

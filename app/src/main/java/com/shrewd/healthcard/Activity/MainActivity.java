@@ -2,7 +2,6 @@ package com.shrewd.healthcard.Activity;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -14,7 +13,6 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.nfc.NdefMessage;
@@ -56,6 +54,7 @@ import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.radiobutton.MaterialRadioButton;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -68,16 +67,13 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
-import com.shrewd.healthcard.ModelClass.Doctor;
-import com.shrewd.healthcard.ModelClass.Government;
 import com.shrewd.healthcard.ModelClass.Hospital;
-import com.shrewd.healthcard.ModelClass.LabAssistant;
 import com.shrewd.healthcard.ModelClass.Laboratory;
-import com.shrewd.healthcard.ModelClass.Patient;
 import com.shrewd.healthcard.ModelClass.User;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
 import com.shrewd.healthcard.Utilities.CU;
+import com.shrewd.healthcard.Utilities.CustomDateValidator;
 import com.shrewd.healthcard.databinding.ActivityMainBinding;
 import com.shrewd.healthcard.databinding.DgNewUserBinding;
 
@@ -94,14 +90,14 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.core.view.GravityCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.NavigationUI;
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class MainActivity extends AppCompatActivity implements LocationListener {
+public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private static final int MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 101;
@@ -125,6 +121,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private SpinKitView progressBarHeader;
     private TextView tvUsername;
     private TextView tvFile;
+    private FusedLocationProviderClient fusedLocationClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,6 +129,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         mContext = MainActivity.this;
+
+        if (fusedLocationClient == null) {
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(mContext);
+        }
 
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
         NavigationUI.setupWithNavController(binding.navView, navController);
@@ -221,7 +222,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         }*/
 
         binding.navView.getMenu().setGroupVisible(R.id.grpCategory, false);
-        setInProgress();
+        CU.showProgressbar(mContext);
 
         if (!CU.isNetworkEnabled(mContext)) {
             Toast.makeText(mContext, "No Internet!", Toast.LENGTH_SHORT).show();
@@ -261,8 +262,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
                     public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        setProgressCompleted();
-                        if (documentSnapshot.exists() && documentSnapshot.getLong(CS.type) != -1) {
+                        CU.hideProgressbar();
+                        User user;
+                        if (documentSnapshot.exists() && (user = documentSnapshot.toObject(User.class)) != null && user.getType() != -1) {
                             Log.e(TAG, "onSuccess: " + documentSnapshot.getId() + " " + documentSnapshot.getBoolean(CS.verified));
                             try {
                                 long type = documentSnapshot.getLong(CS.type);
@@ -301,21 +303,41 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                     dgVerificationPending.show();
                                 } else {
                                     SharedPreferences.Editor editor = getSharedPreferences("GC", MODE_PRIVATE).edit();
-                                    editor.putLong(CS.type, type);
+                                    switch ((int) user.getType()) {
+                                        case CS.DOCTOR:
+                                            editor.putString(CS.doctor_id, user.getUser_id());
+                                            editor.putString(CS.doctor_name, user.getName());
+                                            editor.putString(CS.hospital_id, user.getHospital_id());
+                                            editor.putString(CS.hospital_name, user.getHospital_name());
+                                            break;
+                                        case CS.LAB:
+                                            editor.putString(CS.labassistant_id, user.getUser_id());
+                                            editor.putString(CS.lab_id, user.getLab_id());
+                                            editor.putString(CS.lab_name, user.getLab_name());
+                                            break;
+                                        case CS.GOVERNMENT:
+                                            editor.putString(CS.government_id, user.getUser_id());
+                                            break;
+                                        case CS.ADMIN:
+                                            editor.putString(CS.user_id, user.getUser_id());
+                                            break;
+                                        default:
+                                            //Patient
+                                            editor.putString(CS.patient_id, user.getUser_id());
+                                            editor.putString(CS.patient_name, user.getName());
+                                            break;
+                                    }
+                                    editor.putLong(CS.type, user.getType());
                                     editor.apply();
                                     tvUsername.setText(documentSnapshot.getString(CS.name));
                                     setIcon(type);
                                     setMenu(type);
-                                    CU.navigateTo(mContext, R.id.homeFragment);
                                 }
                             } catch (Exception ex) {
                                 Log.e(TAG, "onSuccess: " + ex.getMessage());
                             }
 
                         } else {
-                            if (documentSnapshot.exists() && documentSnapshot.getLong(CS.type) == -1) {
-                                Toast.makeText(mContext, "Your profile is rejected due to invalid verification proof\nPlease submit valid proof", Toast.LENGTH_LONG).show();
-                            }
                             dgNewUser = new Dialog(mContext);
                             filePathUri = null;
                             DgNewUserBinding bndNewUser = DgNewUserBinding.inflate(getLayoutInflater());
@@ -325,6 +347,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                 window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                                 window.setGravity(Gravity.BOTTOM);
                                 window.setBackgroundDrawable(getDrawable(R.drawable.bg_dg_newuser));
+                            }
+
+                            if (documentSnapshot.exists() && documentSnapshot.getLong(CS.type) == -1) {
+                                CU.snackBar(bndNewUser.getRoot(), "Your profile is rejected due to invalid verification proof\nPlease submit valid proof", 6000);
                             }
 
                             dgNewUser.show();
@@ -382,26 +408,24 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                             });
 
                             ArrayList<Hospital> alHospital = new ArrayList<Hospital>();
+                            alHospital.add(new Hospital("-- Select Hospital --", -1, null, null));
                             db.collection(CS.Hospital)
                                     .get()
                                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                                         @Override
                                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                            alHospital.clear();
-                                            alHospital.add(new Hospital("-- Select Hospital --", -1, null, null));
                                             for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
                                                 Hospital hospital = doc.toObject(Hospital.class);
                                                 alHospital.add(hospital);
-
-                                                ArrayAdapter adapter =
-                                                        new ArrayAdapter(
-                                                                mContext,
-                                                                R.layout.dropdown_menu_popup_item,
-                                                                R.id.tvItem,
-                                                                alHospital);
-
-                                                bndNewUser.spnHospital.setAdapter(adapter);
                                             }
+                                            ArrayAdapter adapter =
+                                                    new ArrayAdapter(
+                                                            mContext,
+                                                            R.layout.dropdown_menu_popup_item,
+                                                            R.id.tvItem,
+                                                            alHospital);
+
+                                            bndNewUser.spnHospital.setAdapter(adapter);
                                         }
                                     })
                                     .addOnFailureListener(new OnFailureListener() {
@@ -412,26 +436,24 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                     });
 
                             ArrayList<Laboratory> alLab = new ArrayList<Laboratory>();
+                            alLab.add(new Laboratory("-- Select Laboratory --", -1, "", ""));
                             db.collection(CS.Laboratory)
                                     .get()
                                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                                         @Override
                                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                            alLab.clear();
-                                            alLab.add(new Laboratory("-- Select Laboratory --", -1, "", ""));
                                             for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
                                                 Laboratory lab = doc.toObject(Laboratory.class);
                                                 alLab.add(lab);
-
-                                                ArrayAdapter adapterLab =
-                                                        new ArrayAdapter(
-                                                                mContext,
-                                                                R.layout.dropdown_menu_popup_item,
-                                                                R.id.tvItem,
-                                                                alLab);
-
-                                                bndNewUser.spnLab.setAdapter(adapterLab);
                                             }
+                                            ArrayAdapter adapterLab =
+                                                    new ArrayAdapter(
+                                                            mContext,
+                                                            R.layout.dropdown_menu_popup_item,
+                                                            R.id.tvItem,
+                                                            alLab);
+
+                                            bndNewUser.spnLab.setAdapter(adapterLab);
                                         }
                                     })
                                     .addOnFailureListener(new OnFailureListener() {
@@ -449,8 +471,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                 }
                             });
 
-                            btnSubmit.setVisibility(View.VISIBLE);
-                            bndNewUser.progressBar.setVisibility(View.GONE);
+                            CU.hideProgressbar();
 
                             btnSubmit.setOnClickListener(new View.OnClickListener() {
                                 @Override
@@ -570,232 +591,253 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                                         return;
                                     }
 
-                                    db.collection(CS.Doctor)
+                                    db.collection(CS.User)
                                             .whereEqualTo(CS.licenseno, bndNewUser.etLicenseNo.getText().toString().trim())
                                             .get()
                                             .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                                                 @Override
                                                 public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
                                                     if (queryDocumentSnapshots.size() > 0) {
-                                                        bndNewUser.etLicenseNo.setError("License No");
+                                                        bndNewUser.etLicenseNo.setError("License No already exists");
                                                         bndNewUser.etLicenseNo.requestFocus();
                                                     } else {
-                                                        btnSubmit.setVisibility(View.GONE);
-                                                        bndNewUser.progressBar.setVisibility(View.VISIBLE);
+                                                        CU.showProgressbar(mContext);
 
-                                                        long type = CS.PATIENT, Gender = CS.NA;
-                                                        if (bndNewUser.rgGender.getCheckedRadioButtonId() == R.id.rbtnMale) {
-                                                            Gender = CS.Male;
-                                                        } else if (bndNewUser.rgGender.getCheckedRadioButtonId() == R.id.rbtnFemale) {
-                                                            Gender = CS.Female;
-                                                        }
-
-                                                        if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnDoctor) {
-                                                            type = CS.DOCTOR;
-                                                        } else if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnLabAssistant) {
-                                                            type = CS.LAB;
-                                                        } else if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnGovernment) {
-                                                            type = CS.GOVERNMENT;
-                                                        }
-
-                                                        try {
-                                                            final long finalGender = Gender;
-                                                            final long finalType = type;
-                                                            if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnPatient) {
-                                                                locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                                                                String city = null, state = null, country = null;
-                                                                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
-                                                                }
-                                                                Location location = locationManager.getLastKnownLocation(locationManager.NETWORK_PROVIDER);
-                                                                double longitude = location.getLongitude();
-                                                                double latitude = location.getLatitude();
-                                                                Geocoder geocoder = new Geocoder(mContext, Locale.getDefault());
-                                                                List<Address> addresses = null;
-                                                                try {
-                                                                    addresses = geocoder.getFromLocation(latitude, longitude, 1);
-                                                                } catch (IOException e) {
-                                                                    e.printStackTrace();
-                                                                }
-                                                                city = addresses.get(0).getLocality();
-                                                                state = addresses.get(0).getAdminArea();
-                                                                country = addresses.get(0).getCountryName();
-                                                                String s = (city != null ? city + ", " + state + ", " + country : "");
-                                                                Log.e(TAG, "onClick: " + s);
-
-                                                                User user = new User(firebaseUser.getUid(), bndNewUser.etFullName.getText().toString(), s,
-                                                                        firebaseUser.getEmail(), "", finalType, finalGender, Long.parseLong(bndNewUser.etMobile.getText().toString()),
-                                                                        false, CU.getDate(bndNewUser.etDOB.getText().toString()), new Date(System.currentTimeMillis()));
-
-                                                                Patient patient = new Patient(null, null, user.getUserid(), String.valueOf(System.currentTimeMillis()));
-                                                                db.collection(CS.User)
-                                                                        .document(firebaseUser.getUid())
-                                                                        .set(user);
-
-                                                                db.collection(CS.Patient)
-                                                                        .document(patient.getPatientid())
-                                                                        .set(patient)
-                                                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                                                            @Override
-                                                                            public void onSuccess(Void aVoid) {
-                                                                                dgNewUser.dismiss();
-                                                                                Toast.makeText(mContext, "New user registered", Toast.LENGTH_SHORT).show();
+                                                        if (!CU.requestPermissions(mContext, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, CS.PermissionRequestCode.LOCATION_NEW_USER)) {
+                                                            if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                                                return;
+                                                            }
+                                                            fusedLocationClient.requestLocationUpdates(
+                                                                    CU.getLocationRequest(),
+                                                                    new LocationCallback() {
+                                                                        @Override
+                                                                        public void onLocationResult(LocationResult locationResult) {
+                                                                            if (locationResult == null || locationResult.getLastLocation() == null) {
+                                                                                CU.snackBar(mContext, "Failed to fetch location", Snackbar.LENGTH_LONG);
+                                                                                return;
                                                                             }
-                                                                        })
-                                                                        .addOnFailureListener(new OnFailureListener() {
-                                                                            @Override
-                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                dgNewUser.dismiss();
-                                                                                Toast.makeText(mContext, "Failed to upload data", Toast.LENGTH_SHORT).show();
+                                                                            if (fusedLocationClient != null) {
+                                                                                fusedLocationClient.removeLocationUpdates(this);
                                                                             }
-                                                                        });
-                                                            } else {
-                                                                Log.e(TAG, "onClick: " + MimeTypeMap.getFileExtensionFromUrl(filePathUri.toString()));
-                                                                final StorageReference sRef = FirebaseStorage.getInstance().getReference("Users/" + System.currentTimeMillis() + "." + MimeTypeMap.getFileExtensionFromUrl(filePathUri.toString()));
-                                                                sRef.putFile(filePathUri)
-                                                                        .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                                                                            @Override
-                                                                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                                                                                sRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                                                                    @Override
-                                                                                    public void onSuccess(Uri uri) {
-                                                                                        Log.e("successfully get uri", "onSuccess: " + uri);
+                                                                            Location location = locationResult.getLastLocation();
+                                                                            Geocoder geocoder = new Geocoder(mContext, Locale.getDefault());
+                                                                            try {
+                                                                                Address address = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1).get(0);
+                                                                                String city_name = address.getLocality();
+                                                                                String state_name = address.getAdminArea();
+                                                                                String country_name = address.getCountryName();
+                                                                                CU.snackBar(mContext, "Location detected as: " + city_name + ", " + state_name, Snackbar.LENGTH_LONG);
+                                                                                String locality = (city_name != null ? city_name + ", " + state_name + ", " + country_name : "");
 
-                                                                                        User user = new User(firebaseUser.getUid(), bndNewUser.etFullName.getText().toString(), bndNewUser.etAddress.getText().toString(),
-                                                                                                firebaseUser.getEmail(), uri.toString(), finalType, finalGender, Long.parseLong(bndNewUser.etMobile.getText().toString()),
-                                                                                                false, CU.getDate(bndNewUser.etDOB.getText().toString()), new Date(System.currentTimeMillis()));
+                                                                                long type = CS.PATIENT, Gender = CS.NA;
+                                                                                if (bndNewUser.rgGender.getCheckedRadioButtonId() == R.id.rbtnMale) {
+                                                                                    Gender = CS.Male;
+                                                                                } else if (bndNewUser.rgGender.getCheckedRadioButtonId() == R.id.rbtnFemale) {
+                                                                                    Gender = CS.Female;
+                                                                                }
 
-                                                                                        db.collection(CS.User).document(firebaseUser.getUid())
+                                                                                if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnDoctor) {
+                                                                                    type = CS.DOCTOR;
+                                                                                } else if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnLabAssistant) {
+                                                                                    type = CS.LAB;
+                                                                                } else if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnGovernment) {
+                                                                                    type = CS.GOVERNMENT;
+                                                                                }
+
+                                                                                try {
+                                                                                    final long finalGender = Gender;
+                                                                                    final long finalType = type;
+                                                                                    if (bndNewUser.rgDesignation.getCheckedRadioButtonId() == R.id.rbtnPatient) {
+                                                                                        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+                                                                                        //TODO: Add weight and allergies in person
+                                                                                        User user = new User(
+                                                                                                firebaseUser.getUid(),
+                                                                                                bndNewUser.etFullName.getText().toString(),
+                                                                                                bndNewUser.etAddress.getText().toString(),
+                                                                                                locality,
+                                                                                                firebaseUser.getEmail(),
+                                                                                                "",
+                                                                                                finalType,
+                                                                                                finalGender,
+                                                                                                Long.parseLong(bndNewUser.etMobile.getText().toString()),
+                                                                                                false, CU.getDate(bndNewUser.etDOB.getText().toString()), new Date(System.currentTimeMillis()),
+                                                                                                null, null, null, null,
+                                                                                                -1, new ArrayList<>(), null, null, null
+                                                                                        );
+
+                                                                                        db.collection(CS.User)
+                                                                                                .document(firebaseUser.getUid())
                                                                                                 .set(user)
-                                                                                                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                                                                                .addOnCompleteListener(new OnCompleteListener<Void>() {
                                                                                                     @Override
-                                                                                                    public void onSuccess(Void aVoid) {
-                                                                                                        Log.e(TAG, "onSuccess: " + firebaseUser.getUid());
+                                                                                                    public void onComplete(@NonNull Task<Void> task) {
+                                                                                                        if (task.isSuccessful()) {
+                                                                                                            CU.snackBar(mContext, "Hello " + user.getName() + ",\n Your application is under verification. We'll notify you when verification is completed", Snackbar.LENGTH_LONG);
+                                                                                                            dgNewUser.dismiss();
+                                                                                                        } else {
+                                                                                                            CU.snackBar(bndNewUser.getRoot(), "Failed to create user! Please try again later", Snackbar.LENGTH_LONG);
+                                                                                                        }
                                                                                                     }
                                                                                                 });
 
-                                                                                        switch (bndNewUser.rgDesignation.getCheckedRadioButtonId()) {
-                                                                                            case R.id.rbtnDoctor:
-                                                                                                Hospital hospital = new Hospital("", -1, "", "");
-                                                                                                if (bndNewUser.rlHospital.getVisibility() == View.VISIBLE) {
-                                                                                                    try {
-                                                                                                        hospital = (Hospital) bndNewUser.spnHospital.getSelectedItem();
-                                                                                                    } catch (Exception ex) {
-                                                                                                        Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                                                                    } else {
+                                                                                        Log.e(TAG, "onClick: " + MimeTypeMap.getFileExtensionFromUrl(filePathUri.toString()));
+                                                                                        final StorageReference sRef = FirebaseStorage.getInstance().getReference("Users/" + System.currentTimeMillis() + "." + MimeTypeMap.getFileExtensionFromUrl(filePathUri.toString()));
+                                                                                        sRef.putFile(filePathUri)
+                                                                                                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                                                                                    @Override
+                                                                                                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                                                                                        sRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                                                                                            @Override
+                                                                                                            public void onSuccess(Uri uri) {
+                                                                                                                Log.e("successfully get uri", "onSuccess: " + uri);
+
+                                                                                                                User user = null;
+                                                                                                                switch (bndNewUser.rgDesignation.getCheckedRadioButtonId()) {
+                                                                                                                    case R.id.rbtnDoctor:
+                                                                                                                        Hospital hospital = new Hospital("", -1, "", "");
+                                                                                                                        if (bndNewUser.rlHospital.getVisibility() == View.VISIBLE) {
+                                                                                                                            try {
+                                                                                                                                hospital = (Hospital) bndNewUser.spnHospital.getSelectedItem();
+                                                                                                                            } catch (Exception ex) {
+                                                                                                                                Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                                                                                                            }
+                                                                                                                        } else {
+                                                                                                                            hospital = new Hospital(bndNewUser.etAddress.getText().toString().trim(),
+                                                                                                                                    Long.valueOf(bndNewUser.etHospitalContactNo.getText().toString().trim()),
+                                                                                                                                    String.valueOf(System.currentTimeMillis()),
+                                                                                                                                    bndNewUser.etHospitalName.getText().toString().trim());
+
+                                                                                                                            db.collection(CS.Hospital)
+                                                                                                                                    .document(hospital.getHospital_id())
+                                                                                                                                    .set(hospital);
+                                                                                                                        }
+                                                                                                                        user = new User(
+                                                                                                                                firebaseUser.getUid(),
+                                                                                                                                bndNewUser.etFullName.getText().toString(),
+                                                                                                                                bndNewUser.etAddress.getText().toString(),
+                                                                                                                                locality,
+                                                                                                                                firebaseUser.getEmail(),
+                                                                                                                                uri.toString(),
+                                                                                                                                finalType,
+                                                                                                                                finalGender,
+                                                                                                                                Long.parseLong(bndNewUser.etMobile.getText().toString()),
+                                                                                                                                false,
+                                                                                                                                CU.getDate(bndNewUser.etDOB.getText().toString()),
+                                                                                                                                new Date(System.currentTimeMillis()),
+                                                                                                                                bndNewUser.etLicenseNo.getText().toString().trim(),
+                                                                                                                                bndNewUser.etDoctorType.getText().toString().trim(),
+                                                                                                                                hospital.getHospital_id(),
+                                                                                                                                hospital.getName(),
+                                                                                                                                -1, null, null, null, null
+                                                                                                                        );
+                                                                                                                        break;
+                                                                                                                    case R.id.rbtnLabAssistant:
+                                                                                                                        Laboratory laboratory;
+                                                                                                                        if (bndNewUser.rlLab.getVisibility() == View.VISIBLE) {
+                                                                                                                            laboratory = (Laboratory) bndNewUser.spnLab.getSelectedItem();
+                                                                                                                        } else {
+                                                                                                                            laboratory = new Laboratory(bndNewUser.etAddress.getText().toString().trim(),
+                                                                                                                                    Long.valueOf(bndNewUser.etLabContactNo.getText().toString().trim()),
+                                                                                                                                    String.valueOf(System.currentTimeMillis()),
+                                                                                                                                    bndNewUser.etLabName.getText().toString().trim());
+
+                                                                                                                            db.collection(CS.Laboratory)
+                                                                                                                                    .document(laboratory.getLab_id())
+                                                                                                                                    .set(laboratory);
+                                                                                                                        }
+
+                                                                                                                        user = new User(
+                                                                                                                                firebaseUser.getUid(),
+                                                                                                                                bndNewUser.etFullName.getText().toString(),
+                                                                                                                                bndNewUser.etAddress.getText().toString(),
+                                                                                                                                locality,
+                                                                                                                                firebaseUser.getEmail(),
+                                                                                                                                uri.toString(),
+                                                                                                                                finalType,
+                                                                                                                                finalGender,
+                                                                                                                                Long.parseLong(bndNewUser.etMobile.getText().toString()),
+                                                                                                                                false,
+                                                                                                                                CU.getDate(bndNewUser.etDOB.getText().toString()),
+                                                                                                                                new Date(System.currentTimeMillis()),
+                                                                                                                                null, null, null, null,
+                                                                                                                                -1, null,
+                                                                                                                                laboratory.getLab_id(),
+                                                                                                                                laboratory.getName(),
+                                                                                                                                null
+                                                                                                                        );
+                                                                                                                        break;
+                                                                                                                    case R.id.rbtnGovernment:
+                                                                                                                        user = new User(
+                                                                                                                                firebaseUser.getUid(),
+                                                                                                                                bndNewUser.etFullName.getText().toString(),
+                                                                                                                                bndNewUser.etAddress.getText().toString(),
+                                                                                                                                locality,
+                                                                                                                                firebaseUser.getEmail(),
+                                                                                                                                uri.toString(),
+                                                                                                                                finalType,
+                                                                                                                                finalGender,
+                                                                                                                                Long.parseLong(bndNewUser.etMobile.getText().toString()),
+                                                                                                                                false,
+                                                                                                                                CU.getDate(bndNewUser.etDOB.getText().toString()),
+                                                                                                                                new Date(System.currentTimeMillis()),
+                                                                                                                                null, null, null, null,
+                                                                                                                                -1, null, null, null,
+                                                                                                                                bndNewUser.etGovernmentArea.getText().toString().trim()
+                                                                                                                        );
+                                                                                                                        break;
+                                                                                                                }
+                                                                                                                if (user != null) {
+                                                                                                                    User finalUser = user;
+                                                                                                                    db.collection(CS.User).document(firebaseUser.getUid())
+                                                                                                                            .set(user)
+                                                                                                                            .addOnCompleteListener(new OnCompleteListener<Void>() {
+                                                                                                                                @Override
+                                                                                                                                public void onComplete(@NonNull Task<Void> task) {
+                                                                                                                                    if (task.isSuccessful()) {
+                                                                                                                                        CU.snackBar(mContext, "Hello " + finalUser.getName() + ",\n Your application is under verification. We'll notify you when it's completed", Snackbar.LENGTH_LONG);
+                                                                                                                                        dgNewUser.dismiss();
+                                                                                                                                    } else {
+                                                                                                                                        CU.snackBar(bndNewUser.getRoot(), "Failed to create user! Please try again later", Snackbar.LENGTH_LONG);
+                                                                                                                                    }
+                                                                                                                                }
+                                                                                                                            });
+                                                                                                                }
+
+                                                                                                            }
+                                                                                                        }).addOnFailureListener(new OnFailureListener() {
+                                                                                                            @Override
+                                                                                                            public void onFailure(@NonNull Exception e) {
+                                                                                                                Toast.makeText(mContext, "Failed to get url: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                                                                                                dgNewUser.dismiss();
+                                                                                                                Log.e("Failed to get url", "onFailure: ");
+                                                                                                            }
+                                                                                                        });
                                                                                                     }
-                                                                                                } else {
-                                                                                                    hospital = new Hospital(bndNewUser.etAddress.getText().toString().trim(),
-                                                                                                            Long.valueOf(bndNewUser.etHospitalContactNo.getText().toString().trim()),
-                                                                                                            String.valueOf(System.currentTimeMillis()),
-                                                                                                            bndNewUser.etHospitalName.getText().toString().trim());
-                                                                                                }
-
-                                                                                                Doctor doctor = new Doctor(String.valueOf(System.currentTimeMillis()), bndNewUser.etDoctorType.getText().toString().trim(),
-                                                                                                        hospital.getHospitalid(), user.getUserid(), bndNewUser.etLicenseNo.getText().toString().trim());
-
-                                                                                                db.collection(CS.Hospital)
-                                                                                                        .document(hospital.getHospitalid())
-                                                                                                        .set(hospital);
-
-                                                                                                db.collection(CS.Doctor)
-                                                                                                        .document(doctor.getDoctorid())
-                                                                                                        .set(doctor)
-                                                                                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                                                                                            @Override
-                                                                                                            public void onSuccess(Void aVoid) {
-                                                                                                                dgNewUser.dismiss();
-                                                                                                                Toast.makeText(mContext, "New user registered", Toast.LENGTH_SHORT).show();
-                                                                                                            }
-                                                                                                        })
-                                                                                                        .addOnFailureListener(new OnFailureListener() {
-                                                                                                            @Override
-                                                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                                                dgNewUser.dismiss();
-                                                                                                                Toast.makeText(mContext, "Failed to upload data", Toast.LENGTH_SHORT).show();
-                                                                                                            }
-                                                                                                        });
-                                                                                                break;
-                                                                                            case R.id.rbtnLabAssistant:
-                                                                                                Laboratory laboratory = new Laboratory("", -1, "", "");
-                                                                                                if (bndNewUser.rlLab.getVisibility() == View.VISIBLE) {
-                                                                                                    laboratory = (Laboratory) bndNewUser.spnLab.getSelectedItem();
-                                                                                                } else {
-                                                                                                    laboratory = new Laboratory(bndNewUser.etAddress.getText().toString().trim(),
-                                                                                                            Long.valueOf(bndNewUser.etLabContactNo.getText().toString().trim()),
-                                                                                                            String.valueOf(System.currentTimeMillis()),
-                                                                                                            bndNewUser.etLabName.getText().toString().trim());
-                                                                                                }
-                                                                                                LabAssistant labAssistant = new LabAssistant(String.valueOf(System.currentTimeMillis()),
-                                                                                                        laboratory.getLabid(), user.getUserid());
-
-                                                                                                db.collection(CS.Laboratory)
-                                                                                                        .document(laboratory.getLabid())
-                                                                                                        .set(laboratory);
-
-                                                                                                db.collection(CS.LabAssistant)
-                                                                                                        .document(labAssistant.getLabassistantid())
-                                                                                                        .set(labAssistant)
-                                                                                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                                                                                            @Override
-                                                                                                            public void onSuccess(Void aVoid) {
-                                                                                                                dgNewUser.dismiss();
-                                                                                                                Toast.makeText(mContext, "New user registered", Toast.LENGTH_SHORT).show();
-                                                                                                            }
-                                                                                                        })
-                                                                                                        .addOnFailureListener(new OnFailureListener() {
-                                                                                                            @Override
-                                                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                                                dgNewUser.dismiss();
-                                                                                                                Toast.makeText(mContext, "Failed to upload data", Toast.LENGTH_SHORT).show();
-                                                                                                            }
-                                                                                                        });
-                                                                                                break;
-                                                                                            case R.id.rbtnGovernment:
-                                                                                                Government government = new Government(String.valueOf(System.currentTimeMillis()),
-                                                                                                        user.getUserid(), bndNewUser.etGovernmentArea.getText().toString().trim());
-                                                                                                db.collection(CS.Government)
-                                                                                                        .document(government.getGovernmentid())
-                                                                                                        .set(government)
-                                                                                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                                                                                            @Override
-                                                                                                            public void onSuccess(Void aVoid) {
-                                                                                                                dgNewUser.dismiss();
-                                                                                                                Toast.makeText(mContext, "New user registered", Toast.LENGTH_SHORT).show();
-                                                                                                            }
-                                                                                                        })
-                                                                                                        .addOnFailureListener(new OnFailureListener() {
-                                                                                                            @Override
-                                                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                                                dgNewUser.dismiss();
-                                                                                                                Toast.makeText(mContext, "Failed to upload data", Toast.LENGTH_SHORT).show();
-                                                                                                            }
-                                                                                                        });
-                                                                                                break;
-                                                                                        }
-
+                                                                                                })
+                                                                                                .addOnFailureListener(new OnFailureListener() {
+                                                                                                    @Override
+                                                                                                    public void onFailure(@NonNull Exception e) {
+                                                                                                        dgNewUser.dismiss();
+                                                                                                        Toast.makeText(mContext, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                                                                                        Log.e("upload failure", "onFailure: " + e.getMessage());
+                                                                                                    }
+                                                                                                });
                                                                                     }
-                                                                                }).addOnFailureListener(new OnFailureListener() {
-                                                                                    @Override
-                                                                                    public void onFailure(@NonNull Exception e) {
-                                                                                        Toast.makeText(mContext, "Failed to get url: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                                                                        dgNewUser.dismiss();
-                                                                                        Log.e("Failed to get url", "onFailure: ");
-                                                                                    }
-                                                                                });
-                                                                            }
-                                                                        })
-                                                                        .addOnFailureListener(new OnFailureListener() {
-                                                                            @Override
-                                                                            public void onFailure(@NonNull Exception e) {
-                                                                                dgNewUser.dismiss();
-                                                                                Toast.makeText(mContext, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                                                                Log.e("upload failure", "onFailure: " + e.getMessage());
-                                                                            }
-                                                                        });
-                                                            }
 
-                                                        } catch (Exception ex) {
-                                                            Log.e(TAG, "onClick: error: " + ex.getMessage());
+                                                                                } catch (Exception ex) {
+                                                                                    Log.e(TAG, "onClick: error: " + ex.getMessage());
+                                                                                }
+                                                                            } catch (Exception e) {
+                                                                                Log.e(TAG, "onLocationChanged: " + e.getMessage());
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    Looper.getMainLooper());
+                                                        } else {
+                                                            CU.hideProgressbar();
+                                                            CU.snackBar(bndNewUser.getRoot(), "Location permission needed!", Snackbar.LENGTH_SHORT);
                                                         }
                                                     }
                                                 }
@@ -856,8 +898,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                             dgNewUser.setOnDismissListener(new DialogInterface.OnDismissListener() {
                                 @Override
                                 public void onDismiss(DialogInterface dialog) {
-                                    btnSubmit.setVisibility(View.VISIBLE);
-                                    bndNewUser.progressBar.setVisibility(View.GONE);
+                                    CU.hideProgressbar();
                                     MainActivity.this.recreate();
                                 }
                             });
@@ -867,7 +908,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        setProgressCompleted();
+                        CU.hideProgressbar();
                         Log.e(TAG, "onFailure: error: " + e.getMessage());
                     }
                 });
@@ -896,7 +937,16 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     private void showDatePicker(final TextInputEditText etDate, String title) {
         MaterialDatePicker.Builder builder = MaterialDatePicker.Builder.datePicker();
         builder.setTitleText(title.equals("") ? "Select Date" : title);
-        builder.setCalendarConstraints(new CalendarConstraints.Builder().setEnd(System.currentTimeMillis()).build());
+        builder.setCalendarConstraints(
+                new CalendarConstraints.Builder()
+                        .setValidator(
+                                new CustomDateValidator(
+                                        CustomDateValidator.Type.END,
+                                        CU.getTime()
+                                )
+                        )
+                        .build()
+        );
         MaterialDatePicker datePicker = builder.build();
 
         datePicker.addOnPositiveButtonClickListener(new MaterialPickerOnPositiveButtonClickListener() {
@@ -913,16 +963,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             }
         });
         datePicker.show(getSupportFragmentManager(), "Date of birth");
-    }
-
-    public void setInProgress() {
-        CU.showProgressBar(binding.flProgressbar);
-        CU.showProgressBar(progressBarHeader);
-    }
-
-    public void setProgressCompleted() {
-        CU.hideProgressBar(binding.flProgressbar);
-        CU.hideProgressBar(progressBarHeader);
     }
 
     private void setIcon(long op) {
@@ -979,14 +1019,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             case CS.DOCTOR:
                 navHistory.setVisible(false);
                 navAnalysis.setVisible(false);
-                navReport.setVisible(true);
+                navReport.setVisible(false);
                 navPatient.setVisible(true);
+                binding.navView.setCheckedItem(navPatient);
+                CU.navigateTo(mContext, R.id.patientFragment);
                 break;
             case CS.LAB:
                 navHistory.setVisible(false);
                 navAnalysis.setVisible(false);
                 navReport.setVisible(true);
                 navPatient.setVisible(false);
+                binding.navView.setCheckedItem(navReport);
+                CU.navigateTo(mContext, R.id.reportsFragment);
                 break;
             case CS.GOVERNMENT:
                 navHome.setVisible(false);
@@ -994,6 +1038,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 navAnalysis.setVisible(true);
                 navReport.setVisible(false);
                 navPatient.setVisible(false);
+                binding.navView.setCheckedItem(navAnalysis);
+                CU.navigateTo(mContext, R.id.analysisFragment);
                 break;
             case CS.ADMIN:
                 navHistory.setVisible(true);
@@ -1001,6 +1047,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 navReport.setVisible(true);
                 navPatient.setVisible(true);
                 navVerify.setVisible(true);
+                binding.navView.setCheckedItem(navAnalysis);
+                CU.navigateTo(mContext, R.id.analysisFragment);
                 break;
             default:
                 navHome.setVisible(true);
@@ -1008,49 +1056,15 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 navAnalysis.setVisible(false);
                 navReport.setVisible(true);
                 navPatient.setVisible(false);
+                binding.navView.setCheckedItem(navHome);
+                CU.navigateTo(mContext, R.id.homeFragment);
                 break;
         }
     }
 
     private void getFileChooserIntent() {
-        if (checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE)) {
-            String[] mimeTypes = {"image/*"};
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("*/*");
-            intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
-            startActivityForResult(Intent.createChooser(intent, "Choose valid proof..."), PICK_VERIFICATION_PROOF);
-        }
-    }
-
-    private boolean checkPermission(final String permission, final int CODE) {
-        if (ContextCompat.checkSelfPermission(mContext, permission)
-                != PackageManager.PERMISSION_GRANTED) {
-            // Permission is not granted
-            if (ActivityCompat.shouldShowRequestPermissionRationale((MainActivity) mContext, permission)) {
-
-                AlertDialog.Builder builder = new AlertDialog
-                        .Builder(mContext);
-                builder.setMessage("• The permission is needed to upload verification proof\n"
-                        + "Do you want to give permissions?");
-                builder.setTitle("Permission needed");
-                builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        ActivityCompat.requestPermissions((MainActivity) mContext,
-                                new String[]{permission},
-                                CODE);
-                    }
-                });
-                builder.show();
-            } else {
-                ActivityCompat.requestPermissions((MainActivity) mContext,
-                        new String[]{permission},
-                        CODE);
-            }
-            return false;
-        } else {
-            return true;
+        if (!CU.requestPermissions(mContext, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, CS.PermissionRequestCode.STORAGE)) {
+            openImagePicker();
         }
     }
 
@@ -1062,7 +1076,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 case PICK_VERIFICATION_PROOF:
                     if (tvFile != null && data != null && data.getData() != null) {
                         Uri uri = data.getData();
-                        filePathUri = Uri.fromFile(new File(CU.getPath(mContext, uri)));
+                        filePathUri = FileProvider.getUriForFile(mContext, "com.shrewd.healthcard.fileprovider", new File(CU.getPath(mContext, uri)));
+//                        filePathUri = Uri.fromFile(new File(CU.getPath(mContext, uri)));
                         tvFile.setText(uri.getPath());
                         tvFile.setError(null);
                         Log.e(TAG, "onActivityResult: " + filePathUri);
@@ -1078,34 +1093,36 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         if (requestCode == MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE) {
-            if (grantResults.length > 0) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 //                getFileChooserIntent();
-                String[] mimeTypes = {"image/*"};
-                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.addCategory(Intent.CATEGORY_OPENABLE);
-                intent.setType("*/*");
-                intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
-                startActivityForResult(Intent.createChooser(intent, "Choose valid proof..."), PICK_VERIFICATION_PROOF);
+                openImagePicker();
             } else {
                 Toast.makeText(mContext, "Cannot upload file, due to denied permission", Toast.LENGTH_SHORT).show();
             }
-        } else if (requestCode == MY_PERMISSIONS_REQUEST_FINE_LOCATION) {
-            if (grantResults.length > 0) {
-                locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    Log.e(TAG, "onRequestPermissionsResult: " + "cannot get location");
-                    return;
+        }
+        SharedPreferences.Editor editor = getSharedPreferences("GC", MODE_PRIVATE).edit();
+        for (int i = 0; i < grantResults.length; i++) {
+            if (grantResults[i] == PackageManager.PERMISSION_DENIED) {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, permissions[i])) {
+                    editor.putInt(permissions[i], CS.PermissionGrantResult.DENIED);
                 } else {
-                    Location location = locationManager.getLastKnownLocation(locationManager.NETWORK_PROVIDER);
-                    onLocationChanged(location);
+                    editor.putInt(permissions[i], CS.PermissionGrantResult.DONTASKAGAIN);
                 }
-            }
-        } else if (requestCode == MY_PERMISSION_PERMISSION_ID) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getLastLocation();
+            } else {
+                editor.putInt(permissions[i], CS.PermissionGrantResult.GRANTED);
             }
         }
+        editor.apply();
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    private void openImagePicker() {
+        String[] mimeTypes = {"image/*"};
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        startActivityForResult(Intent.createChooser(intent, "Choose valid proof..."), PICK_VERIFICATION_PROOF);
     }
 
     @Override
@@ -1186,7 +1203,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
                                     if (!id.equals("")) {
                                         Intent intent1 = new Intent(mContext, PatientActivity.class);
-                                        intent1.putExtra(CS.userid, id);
+                                        intent1.putExtra(CS.user_id, id);
                                         startActivity(intent1);
                                     }
 
@@ -1223,7 +1240,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
                                     if (!id.equals("")) {
                                         Intent intent1 = new Intent(mContext, ReportActivity.class);
-                                        intent1.putExtra(CS.userid, id);
+                                        intent1.putExtra(CS.user_id, id);
                                         intent1.putExtra(CS.type, getSharedPreferences("GC", MODE_PRIVATE).getLong(CS.type, -1));
                                         startActivity(intent1);
                                     }
@@ -1359,41 +1376,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        try {
-            //        Toast.makeText(mContext, location.toString(), Toast.LENGTH_SHORT).show();
-            double longitude = location.getLongitude();
-            double latitude = location.getLatitude();
-            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-            List<Address> addresses = null;
-            try {
-                addresses = geocoder.getFromLocation(latitude, longitude, 1);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            String cityName = addresses.get(0).getLocality();
-            String stateName = addresses.get(0).getAdminArea();
-            String countryName = addresses.get(0).getCountryName();
-            Log.e(TAG, "onLocationChanged: " + "Longitude :" + longitude + "latitude :" + latitude + "city:" + cityName + "state" + stateName + "country:" + countryName);
-//        t1.setText("Longitude :"+longitude+"latitude :"+latitude+"city:"+cityName+"state"+stateName+"country:"+countryName);
-        } catch (Exception ex) {
-            Log.e(TAG, "onLocationChanged: " + ex.getMessage());
-        }
+    public boolean onCreateOptionsMenu(Menu menu) {
+        return super.onCreateOptionsMenu(menu);
     }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-
-    }
-
 }

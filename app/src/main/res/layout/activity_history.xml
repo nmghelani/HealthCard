@@ -247,6 +247,7 @@
                 android:background="@color/dark_grey" />
 
             <LinearLayout
+                android:id="@+id/llDoctor"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -281,6 +282,7 @@
                 android:background="@color/dark_grey" />
 
             <LinearLayout
+                android:id="@+id/llHospital"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"

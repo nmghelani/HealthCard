@@ -37,19 +37,4 @@
         app:srcCompat="@drawable/add"
         app:tint="@color/white" />
 
-    <FrameLayout
-        android:id="@+id/flProgressbar"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/dialog_grey">
-
-        <com.github.ybq.android.spinkit.SpinKitView
-            style="@style/SpinKitView.WanderingCubes"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            app:SpinKit_Color="@color/black" />
-
-    </FrameLayout>
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

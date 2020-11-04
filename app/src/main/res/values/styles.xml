@@ -5,7 +5,7 @@
         <!-- Customize your theme here. -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorAccent">@color/colorPrimary</item>
     </style>
 
     <style name="AppTheme.NoActionBar">
@@ -30,14 +30,16 @@
     </style>
 
     <style name="CustomTextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Custom.TextInputLayout.Rounded</item>
-        <item name="boxStrokeColor">@color/stroke_color</item>
-        <item name="boxStrokeWidth">1dp</item>
     </style>
 
     <style name="ShapeAppearanceOverlay.Custom.TextInputLayout.Rounded" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">4dp</item>
+    </style>
+
+    <style name="ZoomingDialogAnimation">
+        <item name="android:windowEnterAnimation">@anim/dg_zoom_in</item>
+        <item name="android:windowExitAnimation">@anim/dg_zoom_out</item>
     </style>
 
 </resources>

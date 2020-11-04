@@ -1,8 +1,5 @@
 package com.shrewd.healthcard.Activity;
 
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
@@ -17,6 +14,7 @@ import android.view.Window;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -26,6 +24,7 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.shrewd.healthcard.ModelClass.History;
 import com.shrewd.healthcard.ModelClass.Hospital;
 import com.shrewd.healthcard.ModelClass.Laboratory;
+import com.shrewd.healthcard.ModelClass.User;
 import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
 import com.shrewd.healthcard.Utilities.CU;
@@ -33,6 +32,9 @@ import com.shrewd.healthcard.Utilities.CU;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
 
 public class HistoryActivity extends AppCompatActivity {
 
@@ -48,13 +50,6 @@ public class HistoryActivity extends AppCompatActivity {
 
         SharedPreferences sp = getSharedPreferences("GC", MODE_PRIVATE);
         long userType = sp.getLong(CS.type, -1);
-
-        //region set Actionbar
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
-            actionBar.setTitle("History");
-        }
 
         TextView tvDate = findViewById(R.id.tvDate);
         TextView tvReportDate = findViewById(R.id.tvReportDate);
@@ -109,6 +104,11 @@ public class HistoryActivity extends AppCompatActivity {
 
         Intent intent = getIntent();
         History history = intent.getParcelableExtra(CS.History);
+        if (history == null) {
+            CU.toast(mContext, "Some error occurred!\nPlease try again", Toast.LENGTH_LONG).show();
+            onBackPressed();
+            return;
+        }
         int type = intent.getIntExtra(CS.type, -1);
         if (type == CS.REPORT) {
             tvReportDate.setVisibility(View.VISIBLE);
@@ -136,10 +136,17 @@ public class HistoryActivity extends AppCompatActivity {
 //            llPatient.setVisibility(View.GONE);
         }
 
+        //region set Actionbar
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setTitle(history.getPatient_name());
+        }
+
         Log.e(TAG, "onCreate: " + history);
         Log.e(TAG, "onCreate: " + history.getArea());
         Log.e(TAG, "onCreate: " + history.getDisease());
-        Log.e(TAG, "onCreate: " + history.getDoctorid());
+        Log.e(TAG, "onCreate: " + history.getDoctor_id());
 
         Date date = history.getDate();
         SimpleDateFormat sdf = new SimpleDateFormat("E dd, MMM yyyy hh:mm aa");
@@ -151,26 +158,7 @@ public class HistoryActivity extends AppCompatActivity {
         if (actionBar != null && userType == CS.PATIENT) {
             actionBar.setTitle(sdf1.format(date));
         } else if (actionBar != null && (userType == CS.ADMIN || userType == CS.LAB)) {
-            db.collection(CS.Patient)
-                    .whereEqualTo(CS.patientid, history.getPatientid())
-                    .get()
-                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                        @Override
-                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                            for (DocumentSnapshot dsPatient : queryDocumentSnapshots.getDocuments()) {
-                                db.collection(CS.User)
-                                        .document(dsPatient.getString(CS.userid))
-                                        .get()
-                                        .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                            @Override
-                                            public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                                if (documentSnapshot.exists())
-                                                    actionBar.setTitle(documentSnapshot.getString(CS.name));
-                                            }
-                                        });
-                            }
-                        }
-                    });
+            actionBar.setTitle(history.getPatient_name());
         }
 
         final StringBuilder medicine = new StringBuilder();
@@ -204,54 +192,41 @@ public class HistoryActivity extends AppCompatActivity {
         tvSymptoms.setText(symptoms);
         tvVigilance.setText(vigilance);
 
-        db.collection(CS.Doctor)
-                .document(history.getDoctorid())
-                .get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                    @Override
-                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        try {
-                            Log.e(TAG, "onSuccess: " + documentSnapshot.get("userid"));
-                            db.collection(CS.User).document(documentSnapshot.getString(CS.userid))
-                                    .get()
-                                    .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                        @Override
-                                        public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                            if (documentSnapshot.exists()) {
-                                                tvDoctor.setText(documentSnapshot.getString(CS.name) + "\n" + documentSnapshot.getLong(CS.contactno) + "\n" + documentSnapshot.getString(CS.email));
-                                                Log.e(TAG, "onSuccess: doctor name: " + documentSnapshot.getString(CS.name));
-                                            }
-                                        }
-                                    });
-                        } catch (Exception ex) {
-                            Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                        }
+        try {
+            db.collection(CS.User)
+                    .document(history.getDoctor_id())
+                    .get()
+                    .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                        @Override
+                        public void onSuccess(DocumentSnapshot documentSnapshot) {
+                            User user;
+                            if (documentSnapshot.exists() && (user = documentSnapshot.toObject(User.class)) != null) {
+                                tvDoctor.setText(user.getName() + "\n" + user.getContact_no() + "\n" + user.getEmail());
+                                Log.e(TAG, "onSuccess: doctor name: " + user.getName());
 
-                        try {
-                            db.collection(CS.Hospital)
-                                    .get()
-                                    .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                        @Override
-                                        public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                            for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                                                Hospital hospital = doc.toObject(Hospital.class);
-                                                if (hospital != null && hospital.getHospitalid().equals(documentSnapshot.getString(CS.hospitalid))) {
-                                                    tvHospital.setText(hospital.getName() + ",\n" + hospital.getAddress() + "\n" + hospital.getContactno());
-                                                    Log.e(TAG, "onSuccess: doctor name: " + hospital.getName());
+                                db.collection(CS.Hospital)
+                                        .document(user.getHospital_id())
+                                        .get()
+                                        .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                                            @Override
+                                            public void onSuccess(DocumentSnapshot docHospital) {
+                                                Hospital hospital = docHospital.toObject(Hospital.class);
+                                                if (hospital != null) {
+                                                    tvHospital.setText(hospital.getName() + ",\n" + hospital.getAddress() + "\n" + hospital.getContact_no());
+                                                    Log.e(TAG, "onSuccess: hospital name: " + hospital.getName());
                                                 }
                                             }
-                                        }
-                                    });
-                            Log.e(TAG, "onSuccess: " + documentSnapshot.getDocumentReference("doctor"));
-                        } catch (Exception ex) {
-                            Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                        });
+                            }
                         }
-                    }
-                });
+                    });
+        } catch (Exception ex) {
+            Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+        }
 
-        if (!CU.isNullOrEmpty(history.getReportid())) {
+        if (!CU.isNullOrEmpty(history.getReport_id())) {
             db.collection(CS.Report)
-                    .document(history.getReportid())
+                    .document(history.getReport_id())
                     .get()
                     .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                         @Override
@@ -264,7 +239,7 @@ public class HistoryActivity extends AppCompatActivity {
                                 reportName = documentSnapshot.getString(CS.type);
                                 if (type == CS.REPORT) {
                                     db.collection(CS.Laboratory)
-                                            .whereEqualTo(CS.labid, documentSnapshot.getString(CS.labid))
+                                            .whereEqualTo(CS.lab_id, documentSnapshot.getString(CS.lab_id))
                                             .get()
                                             .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                                                 @Override
@@ -273,7 +248,7 @@ public class HistoryActivity extends AppCompatActivity {
                                                         Laboratory lab = dsLab.toObject(Laboratory.class);
 
                                                         if (userType == CS.ADMIN) {
-                                                            tvReport.setText(reportName + "\n(" + lab.getName() + ",\n" + lab.getAddress() + ")\n" + lab.getContactno());
+                                                            tvReport.setText(reportName + "\n(" + lab.getName() + ",\n" + lab.getAddress() + ")\n" + lab.getContact_no());
                                                         } else {
                                                             tvReport.setText(reportName);
                                                         }

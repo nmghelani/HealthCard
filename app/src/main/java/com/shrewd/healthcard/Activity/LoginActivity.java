@@ -189,6 +189,7 @@ public class LoginActivity extends AppCompatActivity {
                 .requestEmail()
                 .build();
         mGoogleSignInClient = GoogleSignIn.getClient(LoginActivity.this, gso);
+        mGoogleSignInClient.signOut();
     }
 
     private void clearEditText() {

@@ -16,8 +16,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -33,7 +31,6 @@ import com.shrewd.healthcard.Adapter.HistoryAdapter;
 import com.shrewd.healthcard.ModelClass.History;
 import com.shrewd.healthcard.Utilities.CS;
 import com.shrewd.healthcard.Utilities.CU;
-import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.databinding.FragmentPatientBinding;
 
 import java.util.ArrayList;
@@ -61,6 +58,11 @@ public class PatientFragment extends Fragment {
         // Inflate the layout for this fragment
         binding = FragmentPatientBinding.inflate(getLayoutInflater(), container, false);
         mContext = getContext();
+
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.PATIENT);
+
         MainActivity.NFCPatientEnabled = true;
 
         firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
@@ -74,7 +76,8 @@ public class PatientFragment extends Fragment {
         Log.e(TAG, "onCreateView: " + type);
 
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        ((MainActivity) mContext).setInProgress();
+        CU.showProgressbar(mContext);
+
         if (type == CS.ADMIN) {
             db.collection(CS.History)
                     .orderBy(CS.date, Query.Direction.DESCENDING)
@@ -88,63 +91,52 @@ public class PatientFragment extends Fragment {
                                     History history = documentSnapshot.toObject(History.class);
                                     Log.e(TAG, "onSuccess: " + history.getDisease());
                                     Log.e(TAG, "onSuccess: " + history.getArea());
-                                    Log.e(TAG, "onSuccess: " + history.getPatientid());
-                                    Log.e(TAG, "onSuccess: " + history.getDoctorid());
+                                    Log.e(TAG, "onSuccess: " + history.getPatient_id());
+                                    Log.e(TAG, "onSuccess: " + history.getDoctor_id());
                                     alHistory.add(history);
                                 } catch (Exception ex) {
                                     Log.e(TAG, "onSuccess: error: " + ex.getMessage());
                                 }
                             }
-                            ((MainActivity) mContext).setProgressCompleted();
+                            CU.hideProgressbar();
                             setAdapter(alHistory, CS.ADMIN);
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(@NonNull Exception e) {
-                            ((MainActivity) mContext).setProgressCompleted();
+                            CU.hideProgressbar();
                             setAdapter(alHistory, CS.ADMIN);
                             Log.e(TAG, "onFailure: " + e.getMessage());
                         }
                     });
         } else if (type == CS.DOCTOR){
-            db.collection(CS.Doctor)
-                    .whereEqualTo(CS.userid, firebaseUser.getUid())
+            db.collection(CS.History)
+                    .orderBy(CS.date, Query.Direction.DESCENDING)
+                    .whereEqualTo(CS.doctor_id, firebaseUser.getUid())
                     .get()
                     .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                         @Override
                         public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                            for (DocumentSnapshot dsDoctor : queryDocumentSnapshots.getDocuments()) {
-                                db.collection(CS.History)
-                                        .orderBy(CS.date, Query.Direction.DESCENDING)
-                                        .whereEqualTo(CS.doctorid, dsDoctor.getString(CS.doctorid))
-                                        .get()
-                                        .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                                            @Override
-                                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                                alHistory.clear();
-                                                for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
-                                                    try {
-                                                        History history = documentSnapshot.toObject(History.class);
-                                                        alHistory.add(history);
-                                                    } catch (Exception ex) {
-                                                        Log.e(TAG, "onSuccess: error: " + ex.getMessage());
-                                                    }
-                                                }
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alHistory, CS.DOCTOR);
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                ((MainActivity) mContext).setProgressCompleted();
-                                                setAdapter(alHistory, CS.DOCTOR);
-                                                Log.e(TAG, "onFailure: " + e.getMessage());
-                                            }
-                                        });
-                                break;
+                            alHistory.clear();
+                            for (DocumentSnapshot documentSnapshot : queryDocumentSnapshots.getDocuments()) {
+                                try {
+                                    History history = documentSnapshot.toObject(History.class);
+                                    alHistory.add(history);
+                                } catch (Exception ex) {
+                                    Log.e(TAG, "onSuccess: error: " + ex.getMessage());
+                                }
                             }
+                            CU.hideProgressbar();
+                            setAdapter(alHistory, CS.DOCTOR);
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            CU.hideProgressbar();
+                            setAdapter(alHistory, CS.DOCTOR);
+                            Log.e(TAG, "onFailure: " + e.getMessage());
                         }
                     });
         }
@@ -160,7 +152,7 @@ public class PatientFragment extends Fragment {
                     binding.rvHistory.setVisibility(View.VISIBLE);
                     binding.llNoData.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alHistory.size());
-                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.DOCTOR);
+                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.Page.PATIENT);
                     binding.rvHistory.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
                     binding.rvHistory.setAdapter(historyAdapter);
                 } else {
@@ -173,7 +165,7 @@ public class PatientFragment extends Fragment {
                     binding.rvHistoryAdmin.setVisibility(View.VISIBLE);
                     binding.llNoDataAdmin.noDataContent.setVisibility(View.GONE);
                     Log.e(TAG, "onSuccess: " + alHistory.size());
-                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.ADMIN);
+                    HistoryAdapter historyAdapter = new HistoryAdapter(mContext, alHistory, CS.Page.PATIENT);
                     binding.rvHistoryAdmin.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
                     binding.rvHistoryAdmin.setAdapter(historyAdapter);
                 } else {

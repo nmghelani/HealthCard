@@ -7,7 +7,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.shrewd.healthcard.R;
+import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.Utilities.CU;
 import com.shrewd.healthcard.databinding.FragmentAboutBinding;
 
 import androidx.fragment.app.Fragment;
@@ -31,6 +32,9 @@ public class AboutFragment extends Fragment {
         // Inflate the layout for this fragment
         binding = FragmentAboutBinding.inflate(inflater, container, false);
         mContext = getContext();
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.ABOUT);
         return binding.getRoot();
     }
 

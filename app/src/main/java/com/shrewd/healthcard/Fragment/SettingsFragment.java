@@ -41,6 +41,10 @@ public class SettingsFragment extends Fragment {
         binding = FragmentSettingsBinding.inflate(getLayoutInflater(), container, false);
         mContext = getContext();
 
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.SETTINGS);
+
         SharedPreferences sp = mContext.getSharedPreferences("GC", MODE_PRIVATE);
         long type = sp.getLong(CS.type, 1);
         Log.e(TAG, "onCreateView: " + type);

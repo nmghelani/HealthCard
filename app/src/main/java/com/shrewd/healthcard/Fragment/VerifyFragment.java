@@ -10,7 +10,6 @@ import android.view.ViewGroup;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
@@ -18,8 +17,8 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.shrewd.healthcard.Activity.MainActivity;
 import com.shrewd.healthcard.Adapter.VerifyAdapter;
 import com.shrewd.healthcard.ModelClass.User;
-import com.shrewd.healthcard.R;
 import com.shrewd.healthcard.Utilities.CS;
+import com.shrewd.healthcard.Utilities.CU;
 import com.shrewd.healthcard.databinding.FragmentVerifyBinding;
 
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import java.util.ArrayList;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -45,13 +43,17 @@ public class VerifyFragment extends Fragment {
 
     }
 
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         binding = FragmentVerifyBinding.inflate(getLayoutInflater(), container, false);
         mContext = getContext();
+
+        if (mContext == null)
+            return binding.getRoot();
+        CU.setActionBar(mContext, CS.Page.VERIFY);
+
         Log.e(TAG, "onCreateView: ");
         return binding.getRoot();
     }
@@ -61,11 +63,12 @@ public class VerifyFragment extends Fragment {
         Log.e(TAG, "onStart: ");
         Log.e(TAG, "onAttach: ");
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        ((MainActivity) mContext).setInProgress();
+        CU.showProgressbar(mContext);
+
         db.collection(CS.User)
                 .orderBy(CS.type)
                 .whereGreaterThan(CS.type, -1)
-                .orderBy(CS.regdate, Query.Direction.DESCENDING)
+                .orderBy(CS.reg_date, Query.Direction.DESCENDING)
                 .whereEqualTo(CS.verified, false)
                 .get()
                 .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
@@ -80,16 +83,20 @@ public class VerifyFragment extends Fragment {
                                     continue;
                                 }
                                 User user = documentSnapshot.toObject(User.class);
+                                if (user == null) {
+                                    continue;
+                                }
+                                user.setUser_id(documentSnapshot.getId());
 //                                user.setContactno(documentSnapshot.getLong(CS.contactno));
                                 Log.e(TAG, "onSuccess: " + user.getType());
                                 Log.e(TAG, "onSuccess: " + user.getAddress());
                                 Log.e(TAG, "onSuccess: " + user.getEmail());
                                 Log.e(TAG, "onSuccess: " + user.getName());
                                 Log.e(TAG, "onSuccess: " + user.getProof());
-                                Log.e(TAG, "onSuccess: " + user.getContactno());
+                                Log.e(TAG, "onSuccess: " + user.getContact_no());
                                 Log.e(TAG, "onSuccess: " + user.getDob());
                                 Log.e(TAG, "onSuccess: " + user.getGender());
-                                Log.e(TAG, "onSuccess: " + user.getRegdate());
+                                Log.e(TAG, "onSuccess: " + user.getReg_date());
                                 Log.e(TAG, "onSuccess: " + user.isVerified());
                                 alUser.add(user);
                                 alUserid.add(documentSnapshot.getId());
@@ -97,7 +104,7 @@ public class VerifyFragment extends Fragment {
                                 Log.e(TAG, "onSuccess: error: " + ex.getMessage());
                             }
                         }
-                        ((MainActivity) mContext).setProgressCompleted();
+                        CU.hideProgressbar();
                         setAdapter(alUser, alUserid);
 
                     }
@@ -105,7 +112,7 @@ public class VerifyFragment extends Fragment {
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception e) {
-                        ((MainActivity) mContext).setProgressCompleted();
+                        CU.hideProgressbar();
                         setAdapter(alUser, alUserid);
                         Log.e(TAG, "onFailure: " + e.getMessage());
                     }
@@ -119,7 +126,7 @@ public class VerifyFragment extends Fragment {
             binding.llNoData.noDataContent.setVisibility(View.GONE);
             Log.e(TAG, "onSuccess: " + alUser.size());
             VerifyAdapter verifyAdapter = new VerifyAdapter(mContext, alUser, alUserid);
-            binding.rvVerify.setLayoutManager(new LinearLayoutManager(mContext, RecyclerView.VERTICAL, false));
+            binding.rvVerify.setLayoutManager(new LinearLayoutManager(mContext));
             binding.rvVerify.setAdapter(verifyAdapter);
         } else {
             binding.rvVerify.setVisibility(View.GONE);

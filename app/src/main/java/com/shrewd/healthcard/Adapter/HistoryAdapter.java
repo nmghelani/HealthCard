@@ -3,6 +3,7 @@ package com.shrewd.healthcard.Adapter;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,14 +12,7 @@ import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.material.button.MaterialButton;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.EventListener;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.FirebaseFirestoreException;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.shrewd.healthcard.Activity.HistoryActivity;
 import com.shrewd.healthcard.ModelClass.History;
 import com.shrewd.healthcard.R;
@@ -29,8 +23,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
-import javax.annotation.Nullable;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -40,13 +32,15 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     private final Context mContext;
     private final ArrayList<History> alHistory;
     private final LayoutInflater inflater;
-    private final int fromWhom;
+    private final int type, page;
 
-    public HistoryAdapter(Context mContext, ArrayList<History> alHistory, int fromWhom) {
+    public HistoryAdapter(Context mContext, ArrayList<History> alHistory, int page) {
         this.mContext = mContext;
         this.alHistory = alHistory;
         inflater = LayoutInflater.from(mContext);
-        this.fromWhom = fromWhom;
+        this.page = page;
+        SharedPreferences sp = mContext.getSharedPreferences("GC", Context.MODE_PRIVATE);
+        type = (int) sp.getLong(CS.type, -1);
     }
 
     @NonNull
@@ -60,126 +54,16 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, final int position) {
         final History history = alHistory.get(position);
 
-        setTools(holder, fromWhom);
-        if (fromWhom == CS.DOCTOR) {
-            FirebaseFirestore db = FirebaseFirestore.getInstance();
-            db.collection(CS.Patient)
-                    .whereEqualTo(CS.patientid, history.getPatientid())
-                    .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                        @Override
-                        public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                            if (queryDocumentSnapshots != null) {
-                                for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-
-                                    db.collection(CS.User)
-                                            .document(doc.getString(CS.userid))
-                                            .get()
-                                            .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                                @Override
-                                                public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                                    if (documentSnapshot.exists()) {
-                                                        String patientName = documentSnapshot.getString(CS.name);
-                                                        holder.tvPatient.setText(patientName != null ? patientName : "N/A");
-                                                    }
-                                                }
-                                            });
-                                    break;
-                                }
-                            }
-                        }
-                    });
-        } else if (fromWhom == CS.PATIENT) {
-            FirebaseFirestore db = FirebaseFirestore.getInstance();
-            db.collection(CS.Doctor)
-                    .whereEqualTo(CS.doctorid, history.getDoctorid())
-                    .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                        @Override
-                        public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                            if (queryDocumentSnapshots != null) {
-                                for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-
-                                    db.collection(CS.User)
-                                            .document(doc.getString(CS.userid))
-                                            .get()
-                                            .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                                @Override
-                                                public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                                    if (documentSnapshot.exists()) {
-                                                        String doctorName = documentSnapshot.getString(CS.name);
-                                                        holder.tvDoctor.setText(doctorName != null ? CS.Dr + doctorName : "N/A");
-                                                    }
-                                                }
-                                            });
-                                    break;
-                                }
-                            }
-                        }
-                    });
-        } else if (fromWhom == CS.ADMIN) {
-            FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-            db.collection(CS.Patient)
-                    .whereEqualTo(CS.patientid, history.getPatientid())
-                    .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                        @Override
-                        public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                            if (queryDocumentSnapshots != null) {
-                                for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                                    String userid = doc.getString(CS.userid);
-                                    if (userid != null) {
-                                        db.collection(CS.User)
-                                                .document(userid)
-                                                .get()
-                                                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                                        String patientName = documentSnapshot.getString(CS.name);
-                                                        holder.tvPatient.setText(patientName);
-                                                    }
-                                                })
-                                                .addOnFailureListener(new OnFailureListener() {
-                                                    @Override
-                                                    public void onFailure(@NonNull Exception e) {
-                                                        holder.tvPatient.setText("N/A");
-                                                    }
-                                                });
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                    });
-
-            db.collection(CS.Doctor)
-                    .whereEqualTo(CS.doctorid, history.getDoctorid())
-                    .addSnapshotListener(new EventListener<QuerySnapshot>() {
-                        @Override
-                        public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                            if (queryDocumentSnapshots != null) {
-                                for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                                    String userid = doc.getString(CS.userid);
-                                    if (userid != null) {
-                                        db.collection(CS.User)
-                                                .document(userid)
-                                                .get()
-                                                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                                                    @Override
-                                                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                                                        String doctorName = documentSnapshot.getString(CS.name);
-                                                        holder.tvDoctor.setText(CS.Dr + doctorName);
-                                                    }
-                                                })
-                                                .addOnFailureListener(new OnFailureListener() {
-                                                    @Override
-                                                    public void onFailure(@NonNull Exception e) {
-                                                        holder.tvDoctor.setText("N/A");
-                                                    }
-                                                });
-                                    }
-                                }
-                            }
-                        }
-                    });
+        setTools(holder, type);
+        if (page == CS.Page.PATIENT_ACTIVITY) {
+            holder.tvDoctor.setText(history.getDoctor_name() != null ? CS.Dr + history.getDoctor_name() : "N/A");
+        } else if (type == CS.DOCTOR) {
+            holder.tvPatient.setText(history.getPatient_name() != null ? history.getPatient_name() : "N/A");
+        } else if (type == CS.PATIENT) {
+            holder.tvDoctor.setText(history.getDoctor_name() != null ? CS.Dr + history.getDoctor_name() : "N/A");
+        } else if (type == CS.ADMIN) {
+            holder.tvPatient.setText(history.getPatient_name());
+            holder.tvDoctor.setText(CS.Dr + history.getDoctor_name());
         }
 
         holder.tvDiseaseHistory.setText(history.getDisease());
@@ -194,21 +78,21 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             public void onClick(View v) {
                 Intent intent = new Intent(mContext, HistoryActivity.class);
                 intent.putExtra(CS.History, history);
-                if (history.getReportsuggesion() != null && history.getReportsuggesion().equals("")) {
-                    intent.putExtra(CS.type, CS.REPORT);
+                if (type != CS.LAB || CU.isNullOrEmpty(history.getReport_suggestion())) {
+//                    intent.putExtra(CS.type, CS.REPORT);
                     mContext.startActivity(intent);
                 } else {
                     Dialog dialog = new Dialog(mContext);
                     dialog.setContentView(R.layout.dg_report_suggesstion);
-                    MaterialButton btnAddReport = dialog.findViewById(R.id.btnAddReport);
+                    MaterialButton btnOk = dialog.findViewById(R.id.btnOk);
                     TextView tvSuggestedReport = dialog.findViewById(R.id.tvSuggestedReport);
-                    tvSuggestedReport.setText(history.getReportsuggesion());
+                    tvSuggestedReport.setText(history.getReport_suggestion());
                     Window window = dialog.getWindow();
                     if (window != null) {
                         window.setBackgroundDrawable(mContext.getDrawable(R.drawable.bg_dg_rounded));
                         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
                     }
-                    btnAddReport.setOnClickListener(new View.OnClickListener() {
+                    btnOk.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
                             dialog.dismiss();
@@ -222,12 +106,14 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         Log.e(TAG, "onBindViewHolder: ");
     }
 
-    private void setTools(ViewHolder holder, int fromWhom) {
+    private void setTools(ViewHolder holder, int type) {
         holder.llHistoryPatient.setVisibility(View.GONE);
         holder.llPatient.setVisibility(View.GONE);
-        if (fromWhom == CS.DOCTOR) {
+        if (page == CS.Page.PATIENT_ACTIVITY) {
+            holder.llHistoryPatient.setVisibility(View.VISIBLE);
+        } else if (type == CS.DOCTOR) {
             holder.llPatient.setVisibility(View.VISIBLE);
-        } else if (fromWhom == CS.ADMIN) {
+        } else if (type == CS.ADMIN) {
             holder.llHistoryPatient.setVisibility(View.VISIBLE);
             holder.llPatient.setVisibility(View.VISIBLE);
         } else {
